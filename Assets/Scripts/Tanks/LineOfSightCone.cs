@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -11,9 +12,17 @@ public class LineOfSightCone : MonoBehaviour
     [Range(3, 64)]
     public int segments = 16;
 
+    [Header("Detection")]
+    public float detectionInterval = 0.2f;
+    public LayerMask obstacleMask = ~0;
+
     [Header("Appearance")]
     public Color coneColor = new Color(1f, 1f, 0f, 0.25f);
+    public Color alertColor = new Color(1f, 0f, 0f, 0.35f);
     public float heightOffset = 0.05f;
+
+    public IReadOnlyList<InputListener> VisibleTanks => visibleTanks;
+    private readonly List<InputListener> visibleTanks = new List<InputListener>();
 
     private Mesh mesh;
     private MeshFilter meshFilter;
@@ -23,6 +32,8 @@ public class LineOfSightCone : MonoBehaviour
     private float lastAngle;
     private float lastRange;
     private int lastSegments;
+    private float detectionTimer;
+    private Transform owner;
 
     void Awake()
     {
@@ -34,6 +45,8 @@ public class LineOfSightCone : MonoBehaviour
 
         transform.localPosition = Vector3.up * heightOffset;
         transform.localRotation = Quaternion.identity;
+
+        owner = transform.parent;
 
         CreateMaterial();
         BuildMesh();
@@ -48,8 +61,50 @@ public class LineOfSightCone : MonoBehaviour
             BuildMesh();
         }
 
+        detectionTimer -= Time.deltaTime;
+        if (detectionTimer <= 0f)
+        {
+            detectionTimer = detectionInterval;
+            DetectTanks();
+        }
+
         if (material != null)
-            material.color = coneColor;
+            material.color = visibleTanks.Count > 0 ? alertColor : coneColor;
+    }
+
+    private void DetectTanks()
+    {
+        visibleTanks.Clear();
+        if (owner == null) return;
+
+        Vector3 origin = owner.position;
+        Vector3 forward = owner.forward;
+        float halfAngle = angle * 0.5f;
+
+        var allTanks = FindObjectsByType<InputListener>(FindObjectsSortMode.None);
+        foreach (var tank in allTanks)
+        {
+            if (tank.transform == owner) continue;
+
+            Vector3 toTarget = tank.transform.position - origin;
+            toTarget.y = 0f;
+            float dist = toTarget.magnitude;
+            if (dist > range || dist < 0.01f) continue;
+
+            float angleTo = Vector3.Angle(forward, toTarget);
+            if (angleTo > halfAngle) continue;
+
+            // Raycast to check for obstacles between us and the target
+            Vector3 rayDir = (tank.transform.position - origin).normalized;
+            if (Physics.Raycast(origin, rayDir, out RaycastHit hit, dist, obstacleMask))
+            {
+                // Hit something — check if it's the target tank
+                if (hit.transform != tank.transform && !hit.transform.IsChildOf(tank.transform))
+                    continue;
+            }
+
+            visibleTanks.Add(tank);
+        }
     }
 
     void OnDestroy()
