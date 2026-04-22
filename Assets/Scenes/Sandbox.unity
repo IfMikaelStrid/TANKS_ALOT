@@ -838,13 +838,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankTestDriver
   targetPlayerNumber: 1
-  tankScript: 'FOR 4
-
-    MOVE 6
-
-    TURN 90 5
-
-    END'
+  tankScript: "FOR 10\r\n  MOVE 2\r\n  IF SPOTTED\n    BOOST\r\n    TURN 90\r\n   
+    MOVE 5\r\n  END\r\n  TURN 36\r\nEND"
   autoRun: 1
   delayBetweenCommands: 0.1
 --- !u!4 &2030719780

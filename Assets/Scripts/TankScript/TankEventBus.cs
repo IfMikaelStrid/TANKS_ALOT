@@ -4,6 +4,7 @@ public static class TankEventBus
 {
     public static event Action<int, float> OnMoveForward;
     public static event Action<int, float, float> OnTurn;
+    public static event Action<int> OnBoost;
     public static event Action<int> OnCommandDone;
 
     public static void MoveForward(int playerNumber, float distance)
@@ -14,6 +15,11 @@ public static class TankEventBus
     public static void Turn(int playerNumber, float degrees, float arcRadius = 0f)
     {
         OnTurn?.Invoke(playerNumber, degrees, arcRadius);
+    }
+
+    public static void Boost(int playerNumber)
+    {
+        OnBoost?.Invoke(playerNumber);
     }
 
     public static void CommandDone(int playerNumber)

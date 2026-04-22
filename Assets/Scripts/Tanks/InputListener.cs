@@ -9,17 +9,21 @@ public class InputListener : MonoBehaviour
     [Header("Movement")]
     public float moveSpeed = 5f;
     public float rotateSpeed = 90f;
+    public float boostDistance = 8f;
+    public float boostSpeed = 40f;
 
     void OnEnable()
     {
         TankEventBus.OnMoveForward += HandleMoveForward;
         TankEventBus.OnTurn += HandleTurn;
+        TankEventBus.OnBoost += HandleBoost;
     }
 
     void OnDisable()
     {
         TankEventBus.OnMoveForward -= HandleMoveForward;
         TankEventBus.OnTurn -= HandleTurn;
+        TankEventBus.OnBoost -= HandleBoost;
     }
 
     private void HandleMoveForward(int playerNumber, float distance)
@@ -100,6 +104,32 @@ public class InputListener : MonoBehaviour
         }
 
         Debug.Log($"[InputListener] {gameObject.name} arc-turned {degrees} degrees with radius {radius}.");
+        TankEventBus.CommandDone(playerNumber);
+    }
+
+    private void HandleBoost(int playerNumber)
+    {
+        if (playerNumber != this.playerNumber) return;
+        StartCoroutine(BoostRoutine());
+    }
+
+    private IEnumerator BoostRoutine()
+    {
+        float moved = 0f;
+
+        while (moved < boostDistance)
+        {
+            float t = moved / boostDistance;
+            // Ease-out: starts fast, decelerates
+            float speed = Mathf.Lerp(boostSpeed, moveSpeed, t * t);
+            float step = speed * Time.deltaTime;
+            if (moved + step > boostDistance) step = boostDistance - moved;
+            transform.position += transform.forward * step;
+            moved += step;
+            yield return null;
+        }
+
+        Debug.Log($"[InputListener] {gameObject.name} boosted {boostDistance} units.");
         TankEventBus.CommandDone(playerNumber);
     }
 }

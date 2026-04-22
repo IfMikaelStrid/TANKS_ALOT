@@ -2,40 +2,58 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-public enum TankCommandType
+// --- Node types ---
+
+public abstract class TankNode { }
+
+public class MoveNode : TankNode
 {
-    Move,
-    Turn
+    public float distance;
 }
 
-public struct TankCommand
+public class TurnNode : TankNode
 {
-    public TankCommandType type;
-    public float value;
+    public float degrees;
     public float arcRadius;
-
-    public TankCommand(TankCommandType type, float value, float arcRadius = 0f)
-    {
-        this.type = type;
-        this.value = value;
-        this.arcRadius = arcRadius;
-    }
 }
+
+public class ForNode : TankNode
+{
+    public int count;
+    public List<TankNode> body = new List<TankNode>();
+}
+
+public enum TankCondition
+{
+    Spotted,
+    NotSpotted
+}
+
+public class IfNode : TankNode
+{
+    public TankCondition condition;
+    public List<TankNode> body = new List<TankNode>();
+    public List<TankNode> elseBody = new List<TankNode>();
+}
+
+public class BoostNode : TankNode { }
+
+// --- Parser ---
 
 public static class TankScriptParser
 {
-    public static List<TankCommand> Parse(string script)
+    public static List<TankNode> Parse(string script)
     {
-        var commands = new List<TankCommand>();
+        var nodes = new List<TankNode>();
         if (string.IsNullOrWhiteSpace(script))
-            return commands;
+            return nodes;
 
         var lines = script.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        ParseBlock(lines, 0, lines.Length, commands);
-        return commands;
+        ParseBlock(lines, 0, lines.Length, nodes);
+        return nodes;
     }
 
-    private static int ParseBlock(string[] lines, int start, int end, List<TankCommand> commands)
+    private static int ParseBlock(string[] lines, int start, int end, List<TankNode> nodes)
     {
         int i = start;
         while (i < end)
@@ -54,7 +72,7 @@ public static class TankScriptParser
             {
                 case "MOVE":
                 case "FORWARD":
-                    commands.Add(new TankCommand(TankCommandType.Move, ParseFloat(tokens, line)));
+                    nodes.Add(new MoveNode { distance = ParseFloat(tokens, line) });
                     i++;
                     break;
 
@@ -65,17 +83,27 @@ public static class TankScriptParser
                     float radius = tokens.Length >= 3
                         ? float.Parse(tokens[2], CultureInfo.InvariantCulture)
                         : 0f;
-                    commands.Add(new TankCommand(TankCommandType.Turn, degrees, radius));
+                    nodes.Add(new TurnNode { degrees = degrees, arcRadius = radius });
                     i++;
                     break;
                 }
 
                 case "FOR":
-                    i = HandleFor(lines, tokens, i, end, commands, line);
+                    i = HandleFor(lines, tokens, i, end, nodes, line);
                     break;
 
+                case "IF":
+                    i = HandleIf(lines, tokens, i, end, nodes, line);
+                    break;
+
+                case "BOOST":
+                    nodes.Add(new BoostNode());
+                    i++;
+                    break;
+
+                case "ELSE":
                 case "END":
-                    return i + 1;
+                    return i;
 
                 default:
                     throw new FormatException($"Unknown command '{tokens[0]}' on line: {line}");
@@ -84,7 +112,7 @@ public static class TankScriptParser
         return i;
     }
 
-    private static int HandleFor(string[] lines, string[] tokens, int forLine, int end, List<TankCommand> commands, string rawLine)
+    private static int HandleFor(string[] lines, string[] tokens, int forLine, int end, List<TankNode> nodes, string rawLine)
     {
         if (tokens.Length < 2)
             throw new FormatException($"FOR requires an iteration count: {rawLine}");
@@ -93,32 +121,62 @@ public static class TankScriptParser
         if (count < 0 || count > 1000)
             throw new FormatException($"FOR count must be between 0 and 1000: {rawLine}");
 
+        var forNode = new ForNode { count = count };
+
         int bodyStart = forLine + 1;
+        int bodyEnd = ParseBlock(lines, bodyStart, end, forNode.body);
 
-        // Find the matching END
-        int depth = 1;
-        int bodyEnd = bodyStart;
-        while (bodyEnd < end && depth > 0)
+        ExpectEnd(lines, bodyEnd, end, rawLine);
+        nodes.Add(forNode);
+        return bodyEnd + 1;
+    }
+
+    private static int HandleIf(string[] lines, string[] tokens, int ifLine, int end, List<TankNode> nodes, string rawLine)
+    {
+        if (tokens.Length < 2)
+            throw new FormatException($"IF requires a condition: {rawLine}");
+
+        var condStr = tokens[1].ToUpperInvariant();
+        TankCondition condition;
+        switch (condStr)
         {
-            var kw = lines[bodyEnd].Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            if (kw.Length > 0)
+            case "SPOTTED":
+                condition = TankCondition.Spotted;
+                break;
+            case "NOT_SPOTTED":
+                condition = TankCondition.NotSpotted;
+                break;
+            default:
+                throw new FormatException($"Unknown condition '{tokens[1]}' on line: {rawLine}");
+        }
+
+        var ifNode = new IfNode { condition = condition };
+
+        int pos = ParseBlock(lines, ifLine + 1, end, ifNode.body);
+
+        // Check for ELSE block
+        if (pos < end)
+        {
+            var elseTokens = lines[pos].Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (elseTokens.Length > 0 && elseTokens[0].ToUpperInvariant() == "ELSE")
             {
-                var upper = kw[0].ToUpperInvariant();
-                if (upper == "FOR") depth++;
-                else if (upper == "END") depth--;
+                pos = ParseBlock(lines, pos + 1, end, ifNode.elseBody);
             }
-            if (depth > 0) bodyEnd++;
         }
 
-        if (depth != 0)
-            throw new FormatException($"Missing END for FOR on line: {rawLine}");
+        ExpectEnd(lines, pos, end, rawLine);
+        nodes.Add(ifNode);
+        return pos + 1;
+    }
 
-        for (int n = 0; n < count; n++)
-        {
-            ParseBlock(lines, bodyStart, bodyEnd, commands);
-        }
+    private static void ExpectEnd(string[] lines, int pos, int end, string openLine)
+    {
+        if (pos >= end)
+            throw new FormatException($"Missing END for: {openLine}");
 
-        return bodyEnd + 1; // skip past the END line
+        var kw = lines[pos].Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        if (kw.Length == 0 || kw[0].ToUpperInvariant() != "END")
+            throw new FormatException($"Expected END, got '{lines[pos].Trim()}' for: {openLine}");
     }
 
     private static float ParseFloat(string[] tokens, string rawLine)
