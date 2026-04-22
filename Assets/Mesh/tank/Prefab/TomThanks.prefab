@@ -462,6 +462,7 @@ GameObject:
   - component: {fileID: 6726495757223327424}
   - component: {fileID: 6692807290551228378}
   - component: {fileID: -4968481377799741375}
+  - component: {fileID: 1788670554517368362}
   m_Layer: 0
   m_Name: TomThanks
   m_TagString: Untagged
@@ -574,6 +575,27 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &1788670554517368362
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6692032196349817862}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2.7954848, y: 1.930303, z: 3.4187868}
+  m_Center: {x: -0.0046516657, y: 0.3535151, z: -0.027908921}
 --- !u!1 &8496521893651882918
 GameObject:
   m_ObjectHideFlags: 0
