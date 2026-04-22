@@ -66,7 +66,7 @@ public class TankTestDriver : MonoBehaviour
                     TankEventBus.MoveForward(targetPlayerNumber, cmd.value);
                     break;
                 case TankCommandType.Turn:
-                    TankEventBus.Turn(targetPlayerNumber, cmd.value);
+                    TankEventBus.Turn(targetPlayerNumber, cmd.value, cmd.arcRadius);
                     break;
             }
 

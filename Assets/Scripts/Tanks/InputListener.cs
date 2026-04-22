@@ -28,10 +28,13 @@ public class InputListener : MonoBehaviour
         StartCoroutine(MoveForwardRoutine(distance));
     }
 
-    private void HandleTurn(int playerNumber, float degrees)
+    private void HandleTurn(int playerNumber, float degrees, float arcRadius)
     {
         if (playerNumber != this.playerNumber) return;
-        StartCoroutine(TurnRoutine(degrees));
+        if (arcRadius > 0f)
+            StartCoroutine(ArcTurnRoutine(degrees, arcRadius));
+        else
+            StartCoroutine(TurnRoutine(degrees));
     }
 
     private IEnumerator MoveForwardRoutine(float distance)
@@ -69,6 +72,34 @@ public class InputListener : MonoBehaviour
         }
 
         Debug.Log($"[InputListener] {gameObject.name} turned {degrees} degrees.");
+        TankEventBus.CommandDone(playerNumber);
+    }
+
+    private IEnumerator ArcTurnRoutine(float degrees, float radius)
+    {
+        float turned = 0f;
+        float direction = Mathf.Sign(degrees);
+        float total = Mathf.Abs(degrees);
+
+        // Pivot point is offset to the right (positive) or left (negative) of the tank
+        Vector3 pivotOffset = transform.right * radius * direction;
+
+        while (turned < total)
+        {
+            float step = rotateSpeed * Time.deltaTime;
+            if (turned + step > total) step = total - turned;
+
+            Vector3 pivot = transform.position + pivotOffset;
+            transform.RotateAround(pivot, Vector3.up, step * direction);
+
+            // Recalculate pivot offset after rotation
+            pivotOffset = transform.right * radius * direction;
+
+            turned += step;
+            yield return null;
+        }
+
+        Debug.Log($"[InputListener] {gameObject.name} arc-turned {degrees} degrees with radius {radius}.");
         TankEventBus.CommandDone(playerNumber);
     }
 }

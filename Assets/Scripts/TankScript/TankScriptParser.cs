@@ -12,11 +12,13 @@ public struct TankCommand
 {
     public TankCommandType type;
     public float value;
+    public float arcRadius;
 
-    public TankCommand(TankCommandType type, float value)
+    public TankCommand(TankCommandType type, float value, float arcRadius = 0f)
     {
         this.type = type;
         this.value = value;
+        this.arcRadius = arcRadius;
     }
 }
 
@@ -58,9 +60,15 @@ public static class TankScriptParser
 
                 case "TURN":
                 case "ROTATE":
-                    commands.Add(new TankCommand(TankCommandType.Turn, ParseFloat(tokens, line)));
+                {
+                    float degrees = ParseFloat(tokens, line);
+                    float radius = tokens.Length >= 3
+                        ? float.Parse(tokens[2], CultureInfo.InvariantCulture)
+                        : 0f;
+                    commands.Add(new TankCommand(TankCommandType.Turn, degrees, radius));
                     i++;
                     break;
+                }
 
                 case "FOR":
                     i = HandleFor(lines, tokens, i, end, commands, line);
