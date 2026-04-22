@@ -389,9 +389,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStart
   tankPrefab: {fileID: 6692032196349817862, guid: 432dcb2ed4eb26743869c3dc731e5e6a, type: 3}
+  spawnHeightOffset: 0.5
   playerNumber: 2
   moveSpeed: 5
   rotateSpeed: 90
+  tankColor: {r: 0, g: 0, b: 1, a: 1}
+  showLineOfSight: 0
+  losAngle: 90
+  losRange: 10
+  losColor: {r: 1, g: 1, b: 0, a: 0.25}
 --- !u!4 &438691532
 Transform:
   m_ObjectHideFlags: 0
@@ -530,9 +536,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStart
   tankPrefab: {fileID: 6692032196349817862, guid: 432dcb2ed4eb26743869c3dc731e5e6a, type: 3}
+  spawnHeightOffset: 0.5
   playerNumber: 1
   moveSpeed: 5
   rotateSpeed: 90
+  tankColor: {r: 0, g: 0.4415095, b: 0.07205683, a: 1}
+  showLineOfSight: 1
+  losAngle: 90
+  losRange: 50
+  losColor: {r: 1, g: 1, b: 0, a: 0.25}
 --- !u!4 &1428611098
 Transform:
   m_ObjectHideFlags: 0
@@ -830,7 +842,7 @@ MonoBehaviour:
 
     MOVE 6
 
-    TURN 90
+    TURN 90 5
 
     END'
   autoRun: 1

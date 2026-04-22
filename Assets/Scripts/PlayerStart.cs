@@ -4,6 +4,7 @@ public class PlayerStart : MonoBehaviour
 {
     [Header("Tank")]
     public GameObject tankPrefab;
+    public float spawnHeightOffset = 0.1f;
 
     [Header("InputListener Settings")]
     public int playerNumber = 1;
@@ -14,7 +15,14 @@ public class PlayerStart : MonoBehaviour
     public Color tankColor = Color.blue;
     private static readonly Color tracksColor = new Color(0.2f, 0.2f, 0.2f, 1f);
 
+    [Header("Line of Sight")]
+    public bool showLineOfSight = true;
+    public float losAngle = 90f;
+    public float losRange = 50f;
+    public Color losColor = new Color(1f, 1f, 0f, 0.25f);
+
     private GameObject spawnedTank;
+    private GameObject losObject;
 
     void Start()
     {
@@ -35,7 +43,8 @@ public class PlayerStart : MonoBehaviour
             return spawnedTank;
         }
 
-        spawnedTank = Instantiate(tankPrefab, transform.position, transform.rotation);
+        Vector3 spawnPos = transform.position + Vector3.up * spawnHeightOffset;
+        spawnedTank = Instantiate(tankPrefab, spawnPos, transform.rotation);
         spawnedTank.name = $"Tank_Player{playerNumber}";
 
         var listener = spawnedTank.GetComponent<InputListener>();
@@ -47,15 +56,39 @@ public class PlayerStart : MonoBehaviour
         listener.rotateSpeed = rotateSpeed;
 
         ApplyColors(spawnedTank);
+        AttachLineOfSight(spawnedTank);
 
         Debug.Log($"[PlayerStart] Spawned {spawnedTank.name} at {transform.position}");
         return spawnedTank;
+    }
+
+    private void AttachLineOfSight(GameObject tank)
+    {
+        losObject = new GameObject("LineOfSight");
+        losObject.transform.SetParent(tank.transform, false);
+
+        var cone = losObject.AddComponent<LineOfSightCone>();
+        cone.angle = losAngle;
+        cone.range = losRange;
+        cone.coneColor = losColor;
+
+        losObject.SetActive(showLineOfSight);
+    }
+
+    void Update()
+    {
+        if (losObject != null && losObject.activeSelf != showLineOfSight)
+            losObject.SetActive(showLineOfSight);
     }
 
     private void ApplyColors(GameObject tank)
     {
         foreach (var renderer in tank.GetComponentsInChildren<Renderer>())
         {
+            // Skip the line-of-sight cone — it manages its own material
+            if (renderer.GetComponent<LineOfSightCone>() != null)
+                continue;
+
             if (renderer.gameObject.name.ToUpperInvariant().Contains("TRACK"))
                 renderer.material.color = tracksColor;
             else
