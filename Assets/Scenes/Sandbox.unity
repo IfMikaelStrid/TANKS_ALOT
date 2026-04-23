@@ -648,7 +648,7 @@ Transform:
   m_GameObject: {fileID: 1723181187}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5621002, y: -0, z: -0, w: 0.82706916}
-  m_LocalPosition: {x: 0, y: 26.59, z: -14.08}
+  m_LocalPosition: {x: 0, y: 32.114, z: -19.988}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -841,7 +841,7 @@ MonoBehaviour:
   tankScript: "FOR 11\r\n  IF SPOTTED\n    FIRE    \r\n    TURN 90\r\n    MOVE 5\r\n 
     END\r\n  TURN 20 4\r\nEND\n"
   autoRun: 1
-  loopScript: 0
+  loopScript: 1
   delayBetweenCommands: 0.5
 --- !u!4 &2030719780
 Transform:

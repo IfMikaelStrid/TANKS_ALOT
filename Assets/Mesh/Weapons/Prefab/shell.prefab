@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 744758540099356307}
   - component: {fileID: -7484353989693498204}
   - component: {fileID: -1226340771280769907}
+  - component: {fileID: 7605723240233087217}
   m_Layer: 0
   m_Name: shell
   m_TagString: Untagged
@@ -82,6 +83,20 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.30260372, y: 0.3140595, z: 0.5151892}
   m_Center: {x: -0.0043148994, y: -0.0022270381, z: 0.29362822}
+--- !u!114 &7605723240233087217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8955540183107665839}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c238833dac4b9614e9b4dd50bdd03387, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShellExplosion
+  explosionEffectPrefab: {fileID: 2090737826113073033, guid: 3903f70cd3bea594e9d22ac28d35fb8e, type: 3}
+  effectDuration: 2
 --- !u!1001 &5558106677615270426
 PrefabInstance:
   m_ObjectHideFlags: 0

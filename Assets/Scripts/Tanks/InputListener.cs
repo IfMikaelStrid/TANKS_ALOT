@@ -56,7 +56,7 @@ public class InputListener : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log($"[InputListener] {gameObject.name} moved forward {distance} units.");
+        // Debug.Log($"[InputListener] {gameObject.name} moved forward {distance} units.");
         TankEventBus.CommandDone(playerNumber);
     }
 
@@ -75,7 +75,7 @@ public class InputListener : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log($"[InputListener] {gameObject.name} turned {degrees} degrees.");
+        // Debug.Log($"[InputListener] {gameObject.name} turned {degrees} degrees.");
         TankEventBus.CommandDone(playerNumber);
     }
 
@@ -103,7 +103,7 @@ public class InputListener : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log($"[InputListener] {gameObject.name} arc-turned {degrees} degrees with radius {radius}.");
+        // Debug.Log($"[InputListener] {gameObject.name} arc-turned {degrees} degrees with radius {radius}.");
         TankEventBus.CommandDone(playerNumber);
     }
 
@@ -129,7 +129,7 @@ public class InputListener : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log($"[InputListener] {gameObject.name} boosted {boostDistance} units.");
+        // Debug.Log($"[InputListener] {gameObject.name} boosted {boostDistance} units.");
         TankEventBus.CommandDone(playerNumber);
     }
 }
