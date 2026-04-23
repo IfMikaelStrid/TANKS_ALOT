@@ -88,6 +88,10 @@ public class TankTestDriver : MonoBehaviour
             {
                 yield return ExecuteCommand(() => TankEventBus.Fire(targetPlayerNumber));
             }
+            else if (node is WaitNode wait)
+            {
+                yield return new WaitForSeconds(wait.seconds);
+            }
             else if (node is ForNode forNode)
             {
                 for (int i = 0; i < forNode.count; i++)

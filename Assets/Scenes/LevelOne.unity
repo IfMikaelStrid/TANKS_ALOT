@@ -803,8 +803,6 @@ MonoBehaviour:
 
     SHOOT
 
-    BOOST
-
     TURN 90 5
 
     END'

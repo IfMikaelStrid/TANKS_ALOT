@@ -40,6 +40,11 @@ public class BoostNode : TankNode { }
 
 public class FireNode : TankNode { }
 
+public class WaitNode : TankNode
+{
+    public float seconds;
+}
+
 // --- Parser ---
 
 public static class TankScriptParser
@@ -106,6 +111,11 @@ public static class TankScriptParser
                 case "FIRE":
                 case "SHOOT":
                     nodes.Add(new FireNode());
+                    i++;
+                    break;
+
+                case "WAIT":
+                    nodes.Add(new WaitNode { seconds = ParseFloat(tokens, line) });
                     i++;
                     break;
 

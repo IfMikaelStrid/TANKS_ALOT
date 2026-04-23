@@ -12,6 +12,11 @@ public class InputListener : MonoBehaviour
     public float boostDistance = 8f;
     public float boostSpeed = 40f;
 
+    [Header("Cooldown")]
+    public float boostCooldown = 2f;
+
+    private float _lastBoostTime = float.MinValue;
+
     void OnEnable()
     {
         TankEventBus.OnMoveForward += HandleMoveForward;
@@ -110,6 +115,15 @@ public class InputListener : MonoBehaviour
     private void HandleBoost(int playerNumber)
     {
         if (playerNumber != this.playerNumber) return;
+
+        if (Time.time - _lastBoostTime < boostCooldown)
+        {
+            Debug.Log($"[InputListener] {gameObject.name} boost on cooldown ({boostCooldown - (Time.time - _lastBoostTime):F1}s remaining).");
+            TankEventBus.CommandDone(playerNumber);
+            return;
+        }
+
+        _lastBoostTime = Time.time;
         StartCoroutine(BoostRoutine());
     }
 
