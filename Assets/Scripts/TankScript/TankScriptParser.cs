@@ -45,6 +45,16 @@ public class WaitNode : TankNode
     public float seconds;
 }
 
+public enum FindTargetType
+{
+    Enemy
+}
+
+public class FindNode : TankNode
+{
+    public FindTargetType target;
+}
+
 // --- Parser ---
 
 public static class TankScriptParser
@@ -118,6 +128,22 @@ public static class TankScriptParser
                     nodes.Add(new WaitNode { seconds = ParseFloat(tokens, line) });
                     i++;
                     break;
+
+                case "FIND":
+                {
+                    if (tokens.Length < 2)
+                        throw new FormatException($"FIND requires a target argument (E): {line}");
+                    var targetArg = tokens[1].ToUpperInvariant();
+                    FindTargetType findTarget;
+                    switch (targetArg)
+                    {
+                        case "E": findTarget = FindTargetType.Enemy; break;
+                        default: throw new FormatException($"Unknown FIND target '{tokens[1]}' on line: {line}");
+                    }
+                    nodes.Add(new FindNode { target = findTarget });
+                    i++;
+                    break;
+                }
 
                 case "ELSE":
                 case "END":
