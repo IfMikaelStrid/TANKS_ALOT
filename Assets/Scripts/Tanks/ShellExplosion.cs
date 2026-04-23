@@ -3,6 +3,7 @@ using UnityEngine;
 public class ShellExplosion : MonoBehaviour
 {
     public GameObject explosionEffectPrefab;
+    public GameObject smokeRingEffectPrefab;
     public float effectDuration = 2f;
     public float explosionForce = 500f;
     public float explosionRadius = 5f;
@@ -35,10 +36,12 @@ public class ShellExplosion : MonoBehaviour
             }
         }
 
-        if (explosionEffectPrefab != null)
+        if (explosionEffectPrefab != null && smokeRingEffectPrefab != null)
         {
             GameObject effect = Instantiate(explosionEffectPrefab, explosionPos, Quaternion.identity);
+            GameObject smokeEffect = Instantiate(smokeRingEffectPrefab, explosionPos, Quaternion.identity);
             Destroy(effect, effectDuration);
+            Destroy(smokeEffect, effectDuration);
         }
 
         Destroy(gameObject);

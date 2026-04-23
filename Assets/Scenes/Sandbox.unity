@@ -838,7 +838,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankTestDriver
   targetPlayerNumber: 1
-  tankScript: "FOR 11\r\n  IF SPOTTED\n    FIRE    \r\n    TURN 90\r\n    MOVE 5\r\n 
+  tankScript: "FOR 11\r\n  IF SPOTTED\n    FIRE    \r\n    TURN 90\r\n    BOOST\r\n 
     END\r\n  TURN 20 4\r\nEND\n"
   autoRun: 1
   loopScript: 1

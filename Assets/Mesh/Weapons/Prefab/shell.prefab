@@ -96,7 +96,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShellExplosion
   explosionEffectPrefab: {fileID: 2090737826113073033, guid: 3903f70cd3bea594e9d22ac28d35fb8e, type: 3}
+  smokeRingEffectPrefab: {fileID: 4651336244236138127, guid: 2bf1b0b719c4a4c4286e12ccbdc3adce, type: 3}
   effectDuration: 2
+  explosionForce: 500
+  explosionRadius: 5
+  damage: 1
 --- !u!1001 &5558106677615270426
 PrefabInstance:
   m_ObjectHideFlags: 0
