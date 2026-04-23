@@ -45,8 +45,8 @@ MonoBehaviour:
   categories: []
   uiBounds:
     serializedVersion: 2
-    x: -0
-    y: -0
+    x: 0
+    y: 0
     width: 738
     height: 3064
 --- !u!114 &114350483966674976
@@ -758,7 +758,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 2
+      m_SerializableObject: 3
     m_Space: -1
   m_Property:
     name: LoopDuration
@@ -2422,7 +2422,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 0
+      m_SerializableObject: 0.2
     m_Space: -1
   m_Property:
     name: Delay
@@ -2458,7 +2458,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: UnityEditor.VFX.TArcTorus, Unity.VisualEffectGraph.Editor,
           Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-      m_SerializableObject: '{"torus":{"transform":{"position":{"x":0.0,"y":0.0,"z":0.0},"angles":{"x":90.0,"y":180.0,"z":180.0},"scale":{"x":1.0,"y":1.0,"z":1.0}},"majorRadius":2.2200000286102297,"minorRadius":0.03999999910593033},"arc":6.28000020980835}'
+      m_SerializableObject: '{"torus":{"transform":{"position":{"x":0.0,"y":0.0,"z":0.0},"angles":{"x":90.0,"y":180.0,"z":180.0},"scale":{"x":1.0,"y":1.0,"z":0.09000000357627869}},"majorRadius":3.9600000381469728,"minorRadius":0.25999999046325686},"arc":6.28000020980835}'
     m_Space: 0
   m_Property:
     name: arcTorus

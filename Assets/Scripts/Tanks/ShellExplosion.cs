@@ -36,12 +36,18 @@ public class ShellExplosion : MonoBehaviour
             }
         }
 
-        if (explosionEffectPrefab != null && smokeRingEffectPrefab != null)
+        if (explosionEffectPrefab != null )
         {
             GameObject effect = Instantiate(explosionEffectPrefab, explosionPos, Quaternion.identity);
             GameObject smokeEffect = Instantiate(smokeRingEffectPrefab, explosionPos, Quaternion.identity);
             Destroy(effect, effectDuration);
-            Destroy(smokeEffect, effectDuration);
+            Destroy(smokeEffect, effectDuration * 1.5f);
+        }
+
+        if (smokeRingEffectPrefab != null) 
+        {
+            GameObject smokeEffect = Instantiate(smokeRingEffectPrefab, explosionPos, Quaternion.identity);
+            Destroy(smokeEffect, effectDuration * 1.5f);
         }
 
         Destroy(gameObject);
