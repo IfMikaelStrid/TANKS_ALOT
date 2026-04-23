@@ -270,6 +270,37 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &4415456310998365380
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5222335369045494935}
+  m_Layer: 0
+  m_Name: FireTransform
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5222335369045494935
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4415456310998365380}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.017, y: 0.939, z: 1.343}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6310967491943739068}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4492547733161894372
 GameObject:
   m_ObjectHideFlags: 0
@@ -463,6 +494,7 @@ GameObject:
   - component: {fileID: 6692807290551228378}
   - component: {fileID: -4968481377799741375}
   - component: {fileID: 1788670554517368362}
+  - component: {fileID: 2273303067692258850}
   m_Layer: 0
   m_Name: TomThanks
   m_TagString: Untagged
@@ -489,6 +521,7 @@ Transform:
   - {fileID: 2352537494879418074}
   - {fileID: 3091484207418108993}
   - {fileID: 214526342145693318}
+  - {fileID: 5222335369045494935}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &6726495757223327424
@@ -516,7 +549,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 84
+  m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!33 &6692807290551228378
 MeshFilter:
@@ -594,8 +627,23 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.7954848, y: 1.930303, z: 3.4187868}
-  m_Center: {x: -0.0046516657, y: 0.3535151, z: -0.027908921}
+  m_Size: {x: 2.7954848, y: 1.9164443, z: 3.4187868}
+  m_Center: {x: -0.0046516657, y: 0.36044443, z: -0.027908921}
+--- !u!114 &2273303067692258850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6692032196349817862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccab076bce7c97c488eeb436d00cfa88, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankFiring
+  playerNumber: 1
+  bulletPrefab: {fileID: 8955540183107665839, guid: ab459923dd2b0a545aef9fda6dfd9ab2, type: 3}
+  launchForce: 20
 --- !u!1 &8496521893651882918
 GameObject:
   m_ObjectHideFlags: 0

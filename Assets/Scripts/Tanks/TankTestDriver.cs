@@ -12,6 +12,7 @@ public class TankTestDriver : MonoBehaviour
     [TextArea(5, 15)]
     public string tankScript = "FOR 4\nMOVE 5\nTURN 90\nEND";
     public bool autoRun = true;
+    public bool loopScript;
     public float delayBetweenCommands = 0.1f;
 
     private Coroutine runningRoutine;
@@ -57,7 +58,11 @@ public class TankTestDriver : MonoBehaviour
     {
         yield return new WaitForSeconds(0.5f);
 
-        yield return ExecuteBlock(nodes);
+        do
+        {
+            yield return ExecuteBlock(nodes);
+        }
+        while (loopScript);
 
         Debug.Log($"[TestDriver] Player {targetPlayerNumber} finished script execution.");
         runningRoutine = null;
@@ -78,6 +83,10 @@ public class TankTestDriver : MonoBehaviour
             else if (node is BoostNode)
             {
                 yield return ExecuteCommand(() => TankEventBus.Boost(targetPlayerNumber));
+            }
+            else if (node is FireNode)
+            {
+                yield return ExecuteCommand(() => TankEventBus.Fire(targetPlayerNumber));
             }
             else if (node is ForNode forNode)
             {

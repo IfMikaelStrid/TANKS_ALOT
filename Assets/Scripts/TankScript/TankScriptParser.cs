@@ -38,6 +38,8 @@ public class IfNode : TankNode
 
 public class BoostNode : TankNode { }
 
+public class FireNode : TankNode { }
+
 // --- Parser ---
 
 public static class TankScriptParser
@@ -98,6 +100,12 @@ public static class TankScriptParser
 
                 case "BOOST":
                     nodes.Add(new BoostNode());
+                    i++;
+                    break;
+
+                case "FIRE":
+                case "SHOOT":
+                    nodes.Add(new FireNode());
                     i++;
                     break;
 
