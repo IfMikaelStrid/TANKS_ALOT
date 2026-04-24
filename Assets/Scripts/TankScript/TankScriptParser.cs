@@ -129,6 +129,8 @@ public static class TankScriptParser
                     i++;
                     break;
 
+                case "SCAN":
+                case "RADAR":
                 case "FIND":
                 {
                     if (tokens.Length < 2)
