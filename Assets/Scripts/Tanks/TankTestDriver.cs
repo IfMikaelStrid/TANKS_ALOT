@@ -17,7 +17,7 @@ public class TankTestDriver : MonoBehaviour
 
     private Coroutine runningRoutine;
     private bool commandDone;
-    private LineOfSightCone cachedLoS;
+    private InputListener cachedListener;
 
     void OnEnable()
     {
@@ -103,7 +103,7 @@ public class TankTestDriver : MonoBehaviour
             }
             else if (node is IfNode ifNode)
             {
-                bool result = EvaluateCondition(ifNode.condition);
+                bool result = GetListener()?.EvaluateCondition(ifNode.condition) ?? false;
                 if (result)
                     yield return ExecuteBlock(ifNode.body);
                 else if (ifNode.elseBody.Count > 0)
@@ -124,35 +124,16 @@ public class TankTestDriver : MonoBehaviour
             yield return new WaitForSeconds(delayBetweenCommands);
     }
 
-    private bool EvaluateCondition(TankCondition condition)
+    private InputListener GetListener()
     {
-        var los = GetLineOfSight();
-        if (los == null)
-        {
-            Debug.LogWarning($"[TestDriver] Player {targetPlayerNumber} has no LineOfSightCone — condition always false.");
-            return condition == TankCondition.NotSpotted;
-        }
-
-        bool spotted = los.VisibleTanks.Count > 0;
-
-        switch (condition)
-        {
-            case TankCondition.Spotted:     return spotted;
-            case TankCondition.NotSpotted:  return !spotted;
-            default:                        return false;
-        }
-    }
-
-    private LineOfSightCone GetLineOfSight()
-    {
-        if (cachedLoS != null) return cachedLoS;
+        if (cachedListener != null) return cachedListener;
 
         foreach (var listener in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
         {
             if (listener.playerNumber == targetPlayerNumber)
             {
-                cachedLoS = listener.GetComponentInChildren<LineOfSightCone>();
-                return cachedLoS;
+                cachedListener = listener;
+                return cachedListener;
             }
         }
         return null;

@@ -19,6 +19,8 @@ public class InputListener : MonoBehaviour
     private float _lastBoostTime = float.MinValue;
     private float _lastFindTime = float.MinValue;
 
+    private LineOfSightCone _cachedLoS;
+
     void OnEnable()
     {
         TankEventBus.OnMoveForward += HandleMoveForward;
@@ -168,7 +170,7 @@ public class InputListener : MonoBehaviour
 
     private IEnumerator FindEnemyRoutine()
     {
-        var los = GetComponentInChildren<LineOfSightCone>();
+        var los = GetLineOfSight();
         float searchRange = los != null ? los.range : float.MaxValue;
 
         InputListener nearest = null;
@@ -201,5 +203,31 @@ public class InputListener : MonoBehaviour
         // Delegate to the turn logic, which will fire CommandDone when complete
         TankEventBus.Turn(playerNumber, angle);
         yield break;
+    }
+
+    public bool EvaluateCondition(TankCondition condition)
+    {
+        var los = GetLineOfSight();
+        if (los == null)
+        {
+            Debug.LogWarning($"[InputListener] {gameObject.name} has no LineOfSightCone — condition always false.");
+            return condition == TankCondition.NotSpotted;
+        }
+
+        bool spotted = los.VisibleTanks.Count > 0;
+
+        switch (condition)
+        {
+            case TankCondition.Spotted:     return spotted;
+            case TankCondition.NotSpotted:  return !spotted;
+            default:                        return false;
+        }
+    }
+
+    private LineOfSightCone GetLineOfSight()
+    {
+        if (_cachedLoS != null) return _cachedLoS;
+        _cachedLoS = GetComponentInChildren<LineOfSightCone>();
+        return _cachedLoS;
     }
 }
