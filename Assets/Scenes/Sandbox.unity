@@ -394,7 +394,7 @@ MonoBehaviour:
   moveSpeed: 5
   rotateSpeed: 90
   tankColor: {r: 0, g: 0, b: 1, a: 1}
-  showLineOfSight: 0
+  showLineOfSight: 1
   losAngle: 90
   losRange: 10
   losColor: {r: 1, g: 1, b: 0, a: 0.25}
@@ -536,9 +536,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankTestDriver
   targetPlayerNumber: 2
-  tankScript: "FOR 11\n  BOOST\n  TURN 180\n  BOOST\n  FIND E\r\n  IF SPOTTED\n   
-    FIRE    \r\n    TURN 90\r\n    BOOST\r\n  END\nFOR 3\r\n  TURN 20 4\n  TURN -20
-    4\r\nEND\nEND\n"
+  tankScript: "FOR 1\n  FIND E\r\n  IF SPOTTED\n    BOOST\r\n  END\nTURN 45 \nEND\n"
   autoRun: 1
   loopScript: 1
   delayBetweenCommands: 0.5
@@ -896,8 +894,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankTestDriver
   targetPlayerNumber: 1
-  tankScript: "FOR 11\n  FIND E\r\n  IF SPOTTED\n    FIRE    \r\n    TURN 90\r\n   
-    BOOST\r\n  END\nFOR 3\r\n  TURN 20 4\n  TURN -20 4\r\nEND\nEND\n"
+  tankScript: "FOR 11\n  FIND E\n  WAIT 2\n  FIND E\r\n  IF SPOTTED\n    FIRE   
+    \r\n    TURN 90\r\n    BOOST\r\n  END\nFOR 3\r\n  TURN 20 4\n  TURN -20 4\r\nEND\nEND\n"
   autoRun: 1
   loopScript: 1
   delayBetweenCommands: 0.5
