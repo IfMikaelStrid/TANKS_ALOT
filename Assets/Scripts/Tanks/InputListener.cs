@@ -14,14 +14,17 @@ public class InputListener : MonoBehaviour
 
     [Header("Cooldown")]
     public float boostCooldown = 2f;
+    public float findCooldown = 5f;
 
     private float _lastBoostTime = float.MinValue;
+    private float _lastFindTime = float.MinValue;
 
     void OnEnable()
     {
         TankEventBus.OnMoveForward += HandleMoveForward;
         TankEventBus.OnTurn += HandleTurn;
         TankEventBus.OnBoost += HandleBoost;
+        TankEventBus.OnFind += HandleFind;
     }
 
     void OnDisable()
@@ -29,6 +32,7 @@ public class InputListener : MonoBehaviour
         TankEventBus.OnMoveForward -= HandleMoveForward;
         TankEventBus.OnTurn -= HandleTurn;
         TankEventBus.OnBoost -= HandleBoost;
+        TankEventBus.OnFind -= HandleFind;
     }
 
     private void HandleMoveForward(int playerNumber, float distance)
@@ -127,6 +131,21 @@ public class InputListener : MonoBehaviour
         StartCoroutine(BoostRoutine());
     }
 
+    private void HandleFind(int playerNumber)
+    {
+        if (playerNumber != this.playerNumber) return;
+
+        if (Time.time - _lastFindTime < findCooldown)
+        {
+            Debug.Log($"[InputListener] {gameObject.name} find on cooldown ({findCooldown - (Time.time - _lastFindTime):F1}s remaining).");
+            TankEventBus.CommandDone(playerNumber);
+            return;
+        }
+
+        _lastFindTime = Time.time;
+        StartCoroutine(FindEnemyRoutine());
+    }
+
     private IEnumerator BoostRoutine()
     {
         float moved = 0f;
@@ -145,5 +164,42 @@ public class InputListener : MonoBehaviour
 
         // Debug.Log($"[InputListener] {gameObject.name} boosted {boostDistance} units.");
         TankEventBus.CommandDone(playerNumber);
+    }
+
+    private IEnumerator FindEnemyRoutine()
+    {
+        var los = GetComponentInChildren<LineOfSightCone>();
+        float searchRange = los != null ? los.range : float.MaxValue;
+
+        InputListener nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var candidate in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
+        {
+            if (candidate.playerNumber == playerNumber) continue;
+
+            float dist = Vector3.Distance(transform.position, candidate.transform.position);
+            if (dist <= searchRange && dist < nearestDist)
+            {
+                nearest = candidate;
+                nearestDist = dist;
+            }
+        }
+
+        if (nearest == null)
+        {
+            Debug.Log($"[InputListener] {gameObject.name} FIND: no enemy within range {searchRange}.");
+            TankEventBus.CommandDone(playerNumber);
+            yield break;
+        }
+
+        Vector3 toTarget = nearest.transform.position - transform.position;
+        toTarget.y = 0f;
+        float angle = Vector3.SignedAngle(transform.forward, toTarget, Vector3.up);
+
+        Debug.Log($"[InputListener] {gameObject.name} FIND: turning {angle:F1}° toward player {nearest.playerNumber}.");
+        // Delegate to the turn logic, which will fire CommandDone when complete
+        TankEventBus.Turn(playerNumber, angle);
+        yield break;
     }
 }

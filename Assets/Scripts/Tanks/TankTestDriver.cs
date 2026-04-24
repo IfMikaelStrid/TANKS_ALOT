@@ -94,7 +94,7 @@ public class TankTestDriver : MonoBehaviour
             }
             else if (node is FindNode find)
             {
-                yield return ExecuteFindNode(find);
+                yield return ExecuteCommand(() => TankEventBus.Find(targetPlayerNumber));
             }
             else if (node is ForNode forNode)
             {
@@ -110,54 +110,6 @@ public class TankTestDriver : MonoBehaviour
                     yield return ExecuteBlock(ifNode.elseBody);
             }
         }
-    }
-
-    private IEnumerator ExecuteFindNode(FindNode find)
-    {
-        // Locate this tank's transform and LoS range
-        InputListener ownerListener = null;
-        foreach (var l in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
-        {
-            if (l.playerNumber == targetPlayerNumber) { ownerListener = l; break; }
-        }
-
-        if (ownerListener == null)
-        {
-            Debug.LogWarning($"[TestDriver] FIND: could not find InputListener for player {targetPlayerNumber}.");
-            yield break;
-        }
-
-        var los = GetLineOfSight();
-        float searchRange = los != null ? los.range : float.MaxValue;
-
-        Transform ownerTransform = ownerListener.transform;
-        InputListener nearest = null;
-        float nearestDist = float.MaxValue;
-
-        foreach (var candidate in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
-        {
-            if (candidate.playerNumber == targetPlayerNumber) continue;
-
-            float dist = Vector3.Distance(ownerTransform.position, candidate.transform.position);
-            if (dist <= searchRange && dist < nearestDist)
-            {
-                nearest = candidate;
-                nearestDist = dist;
-            }
-        }
-
-        if (nearest == null)
-        {
-            Debug.Log($"[TestDriver] FIND E: no enemy within range {searchRange}.");
-            yield break;
-        }
-
-        Vector3 toTarget = nearest.transform.position - ownerTransform.position;
-        toTarget.y = 0f;
-        float angle = Vector3.SignedAngle(ownerTransform.forward, toTarget, Vector3.up);
-
-        Debug.Log($"[TestDriver] FIND E: turning {angle:F1}° toward player {nearest.playerNumber}.");
-        yield return ExecuteCommand(() => TankEventBus.Turn(targetPlayerNumber, angle));
     }
 
     private IEnumerator ExecuteCommand(Action dispatch)
