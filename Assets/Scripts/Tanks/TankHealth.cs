@@ -21,8 +21,18 @@ public class TankHealth : MonoBehaviour
         {
             currentHealth = 0;
             Debug.Log($"[TankHealth] {gameObject.name} destroyed!");
-            Destroy(gameObject);
+
+            var listener = GetComponent<InputListener>();
+            if (listener != null)
+                TankEventBus.TankDestroyed(listener.playerNumber);
+
+            gameObject.SetActive(false);
         }
+    }
+
+    public void ResetHealth()
+    {
+        currentHealth = maxHealth;
     }
 
     public int CurrentHealth => currentHealth;

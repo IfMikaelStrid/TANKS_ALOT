@@ -37,6 +37,11 @@ public class TankConsoleUI : MonoBehaviour
     InputListener cachedListener;
     readonly List<string> logLines = new List<string>();
 
+    // ── game mode state ──
+    bool hasSubmittedOnce;
+    bool waitingForReactiveInput;
+    bool roundOver;
+
     // ── ui handles ──
     Canvas canvas;
     RectTransform panelRect;
@@ -89,6 +94,11 @@ public class TankConsoleUI : MonoBehaviour
     void OnEnable()
     {
         TankEventBus.OnCommandDone += HandleCommandDone;
+        TankEventBus.OnRoundStarted += HandleRoundStarted;
+        TankEventBus.OnRoundEnded += HandleRoundEnded;
+        TankEventBus.OnGameOver += HandleGameOver;
+        TankEventBus.OnReactiveInterval += HandleReactiveInterval;
+        TankEventBus.OnRoundTimerResumed += HandleTimerResumed;
 
         toggleAction = new InputAction("ToggleConsole", InputActionType.Button,
             $"<Keyboard>/{toggleKey}");
@@ -99,6 +109,11 @@ public class TankConsoleUI : MonoBehaviour
     void OnDisable()
     {
         TankEventBus.OnCommandDone -= HandleCommandDone;
+        TankEventBus.OnRoundStarted -= HandleRoundStarted;
+        TankEventBus.OnRoundEnded -= HandleRoundEnded;
+        TankEventBus.OnGameOver -= HandleGameOver;
+        TankEventBus.OnReactiveInterval -= HandleReactiveInterval;
+        TankEventBus.OnRoundTimerResumed -= HandleTimerResumed;
 
         if (toggleAction != null)
         {
@@ -119,11 +134,11 @@ public class TankConsoleUI : MonoBehaviour
 
     public void Play()
     {
-        if (running)
-        {
-            Log("Already running. Stop first.", LogWarning);
-            return;
-        }
+        GameMode mode = GetCurrentGameMode();
+
+        // notify GameManager of submission (starts round on first submit)
+        if (mode != GameMode.Dev)
+            TankEventBus.PlayerSubmitted(playerNumber);
 
         string src = scriptInput != null ? scriptInput.text : "";
         if (string.IsNullOrWhiteSpace(src))
@@ -149,6 +164,146 @@ public class TankConsoleUI : MonoBehaviour
             return;
         }
 
+        hasSubmittedOnce = true;
+
+        switch (mode)
+        {
+            case GameMode.Active:
+                PlayActive(nodes);
+                break;
+            case GameMode.Passive:
+                PlayPassive(nodes);
+                break;
+            case GameMode.Reactive:
+                PlayReactive(nodes);
+                break;
+            default: // Dev
+                PlayDev(nodes);
+                break;
+        }
+    }
+
+    void PlayActive(List<TankNode> nodes)
+    {
+        // execute once, then clear input
+        if (running)
+        {
+            Log("Already running. Stop first.", LogWarning);
+            return;
+        }
+
+        running = true;
+        UpdateButtonStates();
+        Log("▶ Executing...", LogGreen);
+        runCoroutine = StartCoroutine(ExecuteActiveNodes(nodes));
+    }
+
+    IEnumerator ExecuteActiveNodes(List<TankNode> nodes)
+    {
+        yield return new WaitForSeconds(0.1f);
+        yield return ExecuteBlock(nodes);
+
+        if (running)
+            Log("✓ Done.", LogGreen);
+
+        running = false;
+        runCoroutine = null;
+        UpdateButtonStates();
+
+        // clear input prompt after execution
+        if (scriptInput != null)
+            scriptInput.text = "";
+    }
+
+    void PlayPassive(List<TankNode> nodes)
+    {
+        if (running)
+        {
+            Log("Already running. Stop first.", LogWarning);
+            return;
+        }
+
+        running = true;
+        roundOver = false;
+        UpdateButtonStates();
+        Log("▶ Running (passive loop)...", LogGreen);
+        runCoroutine = StartCoroutine(ExecutePassiveNodes(nodes));
+    }
+
+    IEnumerator ExecutePassiveNodes(List<TankNode> nodes)
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        // loop until the round ends
+        while (running && !roundOver)
+        {
+            yield return ExecuteBlock(nodes);
+
+            if (running && !roundOver)
+                Log("↻ Looping...", TxtDim);
+        }
+
+        running = false;
+        runCoroutine = null;
+        UpdateButtonStates();
+    }
+
+    void PlayReactive(List<TankNode> nodes)
+    {
+        if (running)
+        {
+            // re-submit during reactive pause: swap script
+            if (waitingForReactiveInput)
+            {
+                waitingForReactiveInput = false;
+                Log("▶ New routine submitted.", LogGreen);
+                // stop old, start new loop
+                StopRunning();
+            }
+            else
+            {
+                Log("Already running. Wait for reactive interval.", LogWarning);
+                return;
+            }
+        }
+
+        running = true;
+        roundOver = false;
+        waitingForReactiveInput = false;
+        UpdateButtonStates();
+        Log("▶ Running (reactive loop)...", LogGreen);
+        runCoroutine = StartCoroutine(ExecuteReactiveNodes(nodes));
+    }
+
+    IEnumerator ExecuteReactiveNodes(List<TankNode> nodes)
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        while (running && !roundOver && !waitingForReactiveInput)
+        {
+            yield return ExecuteBlock(nodes);
+
+            if (running && !roundOver && !waitingForReactiveInput)
+                Log("↻ Looping...", TxtDim);
+        }
+
+        // if we stopped because of reactive interval, keep running flag true
+        if (!waitingForReactiveInput)
+        {
+            running = false;
+            runCoroutine = null;
+            UpdateButtonStates();
+        }
+    }
+
+    void PlayDev(List<TankNode> nodes)
+    {
+        if (running)
+        {
+            Log("Already running. Stop first.", LogWarning);
+            return;
+        }
+
         running = true;
         UpdateButtonStates();
         Log(looping ? "▶ Running (loop)..." : "▶ Running...", LogGreen);
@@ -157,6 +312,12 @@ public class TankConsoleUI : MonoBehaviour
 
     public void Stop()
     {
+        StopRunning();
+        Log("■ Stopped.", LogWarning);
+    }
+
+    void StopRunning()
+    {
         if (runCoroutine != null)
         {
             StopCoroutine(runCoroutine);
@@ -164,8 +325,8 @@ public class TankConsoleUI : MonoBehaviour
         }
 
         running = false;
+        waitingForReactiveInput = false;
         UpdateButtonStates();
-        Log("■ Stopped.", LogWarning);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -266,6 +427,87 @@ public class TankConsoleUI : MonoBehaviour
             commandDone = true;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  Game event handlers
+    // ═══════════════════════════════════════════════════════════════
+
+    GameMode GetCurrentGameMode()
+    {
+        return GameManager.Instance != null ? GameManager.Instance.gameMode : GameMode.Dev;
+    }
+
+    void HandleRoundStarted(int roundNumber)
+    {
+        roundOver = false;
+        Log($"═ Round {roundNumber} started! ═", LogGreen);
+
+        // In passive mode, auto-start running the script
+        if (GetCurrentGameMode() == GameMode.Passive)
+            AutoPlayPassive();
+    }
+
+    void AutoPlayPassive()
+    {
+        string src = scriptInput != null ? scriptInput.text : "";
+        if (string.IsNullOrWhiteSpace(src))
+            src = defaultScript;
+
+        List<TankNode> nodes;
+        try
+        {
+            nodes = TankScriptParser.Parse(src);
+        }
+        catch (FormatException e)
+        {
+            Log("Parse error: " + e.Message, LogError);
+            return;
+        }
+
+        if (nodes.Count == 0)
+        {
+            Log("Script produced no commands.", LogWarning);
+            return;
+        }
+
+        PlayPassive(nodes);
+    }
+
+    void HandleRoundEnded(int roundNumber, int winner)
+    {
+        roundOver = true;
+        string winText = winner > 0 ? $"Player {winner} wins!" : "Draw!";
+        Log($"═ Round {roundNumber} ended. {winText} ═", LogWarning);
+
+        // stop execution when round ends (Passive/Reactive)
+        StopRunning();
+    }
+
+    void HandleGameOver(int winner)
+    {
+        string winText = winner > 0 ? $"Player {winner} wins the game!" : "No winner.";
+        Log($"══ GAME OVER. {winText} ══", LogGreen);
+        StopRunning();
+    }
+
+    void HandleReactiveInterval(int pn)
+    {
+        if (pn != playerNumber) return;
+
+        waitingForReactiveInput = true;
+        Log("⏸ Reactive interval — update your script and press Play.", LogWarning);
+
+        // enable input
+        if (scriptInput != null)
+            scriptInput.interactable = true;
+        if (playBtn != null)
+            playBtn.interactable = true;
+    }
+
+    void HandleTimerResumed()
+    {
+        waitingForReactiveInput = false;
+    }
+
     InputListener GetListener()
     {
         if (cachedListener != null) return cachedListener;
@@ -288,7 +530,7 @@ public class TankConsoleUI : MonoBehaviour
     void Log(string message, Color color)
     {
         string hex = ColorUtility.ToHtmlStringRGB(color);
-        logLines.Add($"<color=#{hex}>{EscapeRichText(message)}</color>");
+        logLines.Add($"<color=#{hex}>{EscapeRichText(message).ToUpper()}</color>");
 
         while (logLines.Count > maxConsoleLines)
             logLines.RemoveAt(0);

@@ -81,6 +81,31 @@ public class PlayerStart : MonoBehaviour
             losObject.SetActive(showLineOfSight);
     }
 
+    public void ResetTank()
+    {
+        if (spawnedTank == null) return;
+
+        // Stop all running coroutines on the tank (movement, etc.)
+        var listener = spawnedTank.GetComponent<InputListener>();
+        if (listener != null)
+            listener.StopAllCoroutines();
+
+        // Reset position and rotation
+        Vector3 spawnPos = transform.position + Vector3.up * spawnHeightOffset;
+        spawnedTank.transform.position = spawnPos;
+        spawnedTank.transform.rotation = transform.rotation;
+
+        // Reset health
+        var health = spawnedTank.GetComponent<TankHealth>();
+        if (health != null)
+            health.ResetHealth();
+
+        // Re-enable if it was disabled
+        spawnedTank.SetActive(true);
+
+        Debug.Log($"[PlayerStart] Reset {spawnedTank.name} to spawn position.");
+    }
+
     private void ApplyColors(GameObject tank)
     {
         foreach (var renderer in tank.GetComponentsInChildren<Renderer>())
