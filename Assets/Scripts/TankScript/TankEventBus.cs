@@ -19,6 +19,7 @@ public static class TankEventBus
     public static event Action OnRoundTimerResumed;
     public static event Action<int> OnPlayerSubmitted;      // playerNumber (first submit starts round)
     public static event Action<int> OnReactiveInterval;     // playerNumber (reactive mode: time to re-input)
+    public static event Action<int, string> OnScriptError;  // playerNumber, message
 
     public static void MoveForward(int playerNumber, float distance)
     {
@@ -90,5 +91,10 @@ public static class TankEventBus
     public static void ReactiveInterval(int playerNumber)
     {
         OnReactiveInterval?.Invoke(playerNumber);
+    }
+
+    public static void ScriptError(int playerNumber, string message)
+    {
+        OnScriptError?.Invoke(playerNumber, message);
     }
 }

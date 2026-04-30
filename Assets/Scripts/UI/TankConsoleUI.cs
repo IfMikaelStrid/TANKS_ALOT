@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -24,6 +25,8 @@ public class TankConsoleUI : MonoBehaviour
     public int maxConsoleLines = 200;
     public float delayBetweenCommands = 0.1f;
 
+    InputListener _ownerTank;
+
     [Header("Default Script")]
     [TextArea(3, 8)]
     public string defaultScript = "FOR 4\nMOVE 5\nTURN 90\nEND";
@@ -32,9 +35,6 @@ public class TankConsoleUI : MonoBehaviour
     bool collapsed = true;
     bool looping;
     bool running;
-    Coroutine runCoroutine;
-    bool commandDone;
-    InputListener cachedListener;
     readonly List<string> logLines = new List<string>();
 
     // ── game mode state ──
@@ -93,12 +93,12 @@ public class TankConsoleUI : MonoBehaviour
 
     void OnEnable()
     {
-        TankEventBus.OnCommandDone += HandleCommandDone;
         TankEventBus.OnRoundStarted += HandleRoundStarted;
         TankEventBus.OnRoundEnded += HandleRoundEnded;
         TankEventBus.OnGameOver += HandleGameOver;
         TankEventBus.OnReactiveInterval += HandleReactiveInterval;
         TankEventBus.OnRoundTimerResumed += HandleTimerResumed;
+        TankEventBus.OnScriptError += HandleScriptError;
 
         toggleAction = new InputAction("ToggleConsole", InputActionType.Button,
             $"<Keyboard>/{toggleKey}");
@@ -108,12 +108,12 @@ public class TankConsoleUI : MonoBehaviour
 
     void OnDisable()
     {
-        TankEventBus.OnCommandDone -= HandleCommandDone;
         TankEventBus.OnRoundStarted -= HandleRoundStarted;
         TankEventBus.OnRoundEnded -= HandleRoundEnded;
         TankEventBus.OnGameOver -= HandleGameOver;
         TankEventBus.OnReactiveInterval -= HandleReactiveInterval;
         TankEventBus.OnRoundTimerResumed -= HandleTimerResumed;
+        TankEventBus.OnScriptError -= HandleScriptError;
 
         if (toggleAction != null)
         {
@@ -134,297 +134,75 @@ public class TankConsoleUI : MonoBehaviour
 
     public void Play()
     {
-        GameMode mode = GetCurrentGameMode();
-
-        // notify GameManager of submission (starts round on first submit)
-        if (mode != GameMode.Dev)
-            TankEventBus.PlayerSubmitted(playerNumber);
-
         string src = scriptInput != null ? scriptInput.text : "";
-        if (string.IsNullOrWhiteSpace(src))
-        {
-            Log("Script is empty.", LogWarning);
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(src)) { Log("Script is empty.", LogWarning); return; }
 
+        // Local parse just for friendly error feedback before sending.
         List<TankNode> nodes;
-        try
-        {
-            nodes = TankScriptParser.Parse(src);
-        }
-        catch (FormatException e)
-        {
-            Log("Parse error: " + e.Message, LogError);
-            return;
-        }
+        try { nodes = TankScriptParser.Parse(src); }
+        catch (FormatException e) { Log("Parse error: " + e.Message, LogError); return; }
+        if (nodes.Count == 0) { Log("Script produced no commands.", LogWarning); return; }
 
-        if (nodes.Count == 0)
-        {
-            Log("Script produced no commands.", LogWarning);
-            return;
-        }
+        var tank = ResolveOwnerTank();
+        if (tank == null) { Log("No owned tank yet — wait for spawn.", LogWarning); return; }
 
+        playerNumber = tank.PlayerNumber;
         hasSubmittedOnce = true;
-
-        switch (mode)
-        {
-            case GameMode.Active:
-                PlayActive(nodes);
-                break;
-            case GameMode.Passive:
-                PlayPassive(nodes);
-                break;
-            case GameMode.Reactive:
-                PlayReactive(nodes);
-                break;
-            default: // Dev
-                PlayDev(nodes);
-                break;
-        }
-    }
-
-    void PlayActive(List<TankNode> nodes)
-    {
-        // execute once, then clear input
-        if (running)
-        {
-            Log("Already running. Stop first.", LogWarning);
-            return;
-        }
-
-        running = true;
-        UpdateButtonStates();
-        Log("▶ Executing...", LogGreen);
-        runCoroutine = StartCoroutine(ExecuteActiveNodes(nodes));
-    }
-
-    IEnumerator ExecuteActiveNodes(List<TankNode> nodes)
-    {
-        yield return new WaitForSeconds(0.1f);
-        yield return ExecuteBlock(nodes);
-
-        if (running)
-            Log("✓ Done.", LogGreen);
-
-        running = false;
-        runCoroutine = null;
-        UpdateButtonStates();
-
-        // clear input prompt after execution
-        if (scriptInput != null)
-            scriptInput.text = "";
-    }
-
-    void PlayPassive(List<TankNode> nodes)
-    {
-        if (running)
-        {
-            Log("Already running. Stop first.", LogWarning);
-            return;
-        }
-
         running = true;
         roundOver = false;
         UpdateButtonStates();
-        Log("▶ Running (passive loop)...", LogGreen);
-        runCoroutine = StartCoroutine(ExecutePassiveNodes(nodes));
+        Log("\u25b6 Submitted to server.", LogGreen);
+
+        if (NetworkActive())
+            tank.SubmitScriptServerRpc(src);
+        else
+            Log("Offline mode: server RPC skipped.", LogWarning);
+
+        if (GetCurrentGameMode() != GameMode.Dev)
+            TankEventBus.PlayerSubmitted(playerNumber);
     }
 
-    IEnumerator ExecutePassiveNodes(List<TankNode> nodes)
+    bool NetworkActive() => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+
+    InputListener ResolveOwnerTank()
     {
-        yield return new WaitForSeconds(0.2f);
+        if (_ownerTank != null && _ownerTank.gameObject != null) return _ownerTank;
 
-        // loop until the round ends
-        while (running && !roundOver)
+        if (!NetworkActive())
         {
-            yield return ExecuteBlock(nodes);
-
-            if (running && !roundOver)
-                Log("↻ Looping...", TxtDim);
+            // Offline fallback: pick by playerNumber.
+            foreach (var l in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
+                if (l.playerNumber == playerNumber) { _ownerTank = l; break; }
+            return _ownerTank;
         }
 
-        running = false;
-        runCoroutine = null;
-        UpdateButtonStates();
+        foreach (var l in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
+        {
+            if (l.IsOwner) { _ownerTank = l; return l; }
+        }
+        return null;
     }
 
-    void PlayReactive(List<TankNode> nodes)
-    {
-        if (running)
-        {
-            // re-submit during reactive pause: swap script
-            if (waitingForReactiveInput)
-            {
-                waitingForReactiveInput = false;
-                Log("▶ New routine submitted.", LogGreen);
-                // stop old, start new loop
-                StopRunning();
-            }
-            else
-            {
-                Log("Already running. Wait for reactive interval.", LogWarning);
-                return;
-            }
-        }
-
-        running = true;
-        roundOver = false;
-        waitingForReactiveInput = false;
-        UpdateButtonStates();
-        Log("▶ Running (reactive loop)...", LogGreen);
-        runCoroutine = StartCoroutine(ExecuteReactiveNodes(nodes));
-    }
-
-    IEnumerator ExecuteReactiveNodes(List<TankNode> nodes)
-    {
-        yield return new WaitForSeconds(0.2f);
-
-        while (running && !roundOver && !waitingForReactiveInput)
-        {
-            yield return ExecuteBlock(nodes);
-
-            if (running && !roundOver && !waitingForReactiveInput)
-                Log("↻ Looping...", TxtDim);
-        }
-
-        // if we stopped because of reactive interval, keep running flag true
-        if (!waitingForReactiveInput)
-        {
-            running = false;
-            runCoroutine = null;
-            UpdateButtonStates();
-        }
-    }
-
-    void PlayDev(List<TankNode> nodes)
-    {
-        if (running)
-        {
-            Log("Already running. Stop first.", LogWarning);
-            return;
-        }
-
-        running = true;
-        UpdateButtonStates();
-        Log(looping ? "▶ Running (loop)..." : "▶ Running...", LogGreen);
-        runCoroutine = StartCoroutine(ExecuteNodes(nodes));
-    }
+    void PlayActive(List<TankNode> nodes) { Play(); }
+    void PlayPassive(List<TankNode> nodes) { Play(); }
+    void PlayReactive(List<TankNode> nodes) { Play(); }
+    void PlayDev(List<TankNode> nodes) { Play(); }
 
     public void Stop()
     {
         StopRunning();
-        Log("■ Stopped.", LogWarning);
+        Log("\u25a0 Stopped.", LogWarning);
     }
 
     void StopRunning()
     {
-        if (runCoroutine != null)
-        {
-            StopCoroutine(runCoroutine);
-            runCoroutine = null;
-        }
+        var tank = ResolveOwnerTank();
+        if (tank != null && NetworkActive())
+            tank.StopScriptServerRpc();
 
         running = false;
         waitingForReactiveInput = false;
         UpdateButtonStates();
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    //  Script execution (mirrors TankTestDriver logic)
-    // ═══════════════════════════════════════════════════════════════
-
-    IEnumerator ExecuteNodes(List<TankNode> nodes)
-    {
-        yield return new WaitForSeconds(0.2f);
-
-        do
-        {
-            yield return ExecuteBlock(nodes);
-
-            if (looping)
-                Log("↻ Looping...", TxtDim);
-        }
-        while (looping && running);
-
-        if (running)
-            Log("✓ Script finished.", LogGreen);
-
-        running = false;
-        runCoroutine = null;
-        UpdateButtonStates();
-    }
-
-    IEnumerator ExecuteBlock(List<TankNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            if (!running) yield break;
-
-            if (node is MoveNode move)
-            {
-                Log($"  MOVE {move.distance}", Txt);
-                yield return RunCommand(() => TankEventBus.MoveForward(playerNumber, move.distance));
-            }
-            else if (node is TurnNode turn)
-            {
-                string extra = turn.arcRadius > 0 ? $" (arc {turn.arcRadius})" : "";
-                Log($"  TURN {turn.degrees}{extra}", Txt);
-                yield return RunCommand(() => TankEventBus.Turn(playerNumber, turn.degrees, turn.arcRadius));
-            }
-            else if (node is BoostNode)
-            {
-                Log("  BOOST", Txt);
-                yield return RunCommand(() => TankEventBus.Boost(playerNumber));
-            }
-            else if (node is FireNode)
-            {
-                Log("  FIRE", Txt);
-                yield return RunCommand(() => TankEventBus.Fire(playerNumber));
-            }
-            else if (node is WaitNode wait)
-            {
-                Log($"  WAIT {wait.seconds}s", Txt);
-                yield return new WaitForSeconds(wait.seconds);
-            }
-            else if (node is FindNode)
-            {
-                Log("  FIND", Txt);
-                yield return RunCommand(() => TankEventBus.Find(playerNumber));
-            }
-            else if (node is ForNode forNode)
-            {
-                Log($"  FOR {forNode.count}", TxtDim);
-                for (int i = 0; i < forNode.count && running; i++)
-                    yield return ExecuteBlock(forNode.body);
-            }
-            else if (node is IfNode ifNode)
-            {
-                bool result = GetListener()?.EvaluateCondition(ifNode.condition) ?? false;
-                Log($"  IF {ifNode.condition} → {result}", TxtDim);
-                if (result)
-                    yield return ExecuteBlock(ifNode.body);
-                else if (ifNode.elseBody.Count > 0)
-                    yield return ExecuteBlock(ifNode.elseBody);
-            }
-        }
-    }
-
-    IEnumerator RunCommand(Action dispatch)
-    {
-        commandDone = false;
-        dispatch();
-
-        while (!commandDone && running)
-            yield return null;
-
-        if (delayBetweenCommands > 0f)
-            yield return new WaitForSeconds(delayBetweenCommands);
-    }
-
-    void HandleCommandDone(int pn)
-    {
-        if (pn == playerNumber)
-            commandDone = true;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -508,19 +286,10 @@ public class TankConsoleUI : MonoBehaviour
         waitingForReactiveInput = false;
     }
 
-    InputListener GetListener()
+    void HandleScriptError(int pn, string message)
     {
-        if (cachedListener != null) return cachedListener;
-
-        foreach (var l in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
-        {
-            if (l.playerNumber == playerNumber)
-            {
-                cachedListener = l;
-                return l;
-            }
-        }
-        return null;
+        if (pn != playerNumber) return;
+        Log("Server: " + message, LogError);
     }
 
     // ═══════════════════════════════════════════════════════════════

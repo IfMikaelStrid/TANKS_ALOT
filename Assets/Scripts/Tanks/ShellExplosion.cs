@@ -1,6 +1,7 @@
+using Unity.Netcode;
 using UnityEngine;
 
-public class ShellExplosion : MonoBehaviour
+public class ShellExplosion : NetworkBehaviour
 {
     public GameObject explosionEffectPrefab;
     public GameObject smokeRingEffectPrefab;
@@ -9,46 +10,60 @@ public class ShellExplosion : MonoBehaviour
     public float explosionRadius = 5f;
     public int damage = 1;
 
+    bool _exploded;
+
     void OnCollisionEnter(Collision collision)
     {
-        Vector3 explosionPos = transform.position;
+        // Damage logic must run on the server only when networked.
+        bool networked = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        if (networked && !IsServer)
+        {
+            if (!_exploded) PlayEffectsLocal();
+            return;
+        }
 
+        if (_exploded) return;
+        _exploded = true;
+
+        Vector3 explosionPos = transform.position;
         Collider[] hits = Physics.OverlapSphere(explosionPos, explosionRadius);
         foreach (Collider hit in hits)
         {
-            if (hit is BoxCollider && hit.GetComponent<Terrain>() == null)
-            {
-                Debug.Log($"[ShellExplosion] Hit BoxCollider on {hit.gameObject.name}");
-            }
-
-            TankHealth health = hit.GetComponentInParent<TankHealth>();
+            var health = hit.GetComponentInParent<TankHealth>();
             if (health != null)
             {
                 Debug.Log($"TAKING DAMAGE: {hit.gameObject.name} (Health: {health.CurrentHealth})");
-
                 health.TakeDamage(damage);
             }
 
-            Rigidbody rb = hit.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.AddExplosionForce(explosionForce, explosionPos, explosionRadius);
-            }
+            var rb = hit.GetComponent<Rigidbody>();
+            if (rb != null) rb.AddExplosionForce(explosionForce, explosionPos, explosionRadius);
         }
 
-        if (explosionEffectPrefab != null )
-        {
-            GameObject effect = Instantiate(explosionEffectPrefab, explosionPos, Quaternion.identity);
-            Destroy(effect, effectDuration);
-        }
+        PlayEffectsLocal();
+        PlayEffectsClientRpc(explosionPos);
 
-        if (smokeRingEffectPrefab != null) 
-        {
-            GameObject smokeEffect = Instantiate(smokeRingEffectPrefab, explosionPos, Quaternion.identity);
-            Destroy(smokeEffect, effectDuration * 1.5f);
-        }
+        if (networked && IsSpawned) NetworkObject.Despawn(true);
+        else Destroy(gameObject);
+    }
 
+    [Rpc(SendTo.NotServer)]
+    void PlayEffectsClientRpc(Vector3 pos)
+    {
+        SpawnEffect(explosionEffectPrefab, pos, effectDuration);
+        SpawnEffect(smokeRingEffectPrefab, pos, effectDuration * 1.5f);
+    }
 
-        Destroy(gameObject);
+    void PlayEffectsLocal()
+    {
+        SpawnEffect(explosionEffectPrefab, transform.position, effectDuration);
+        SpawnEffect(smokeRingEffectPrefab, transform.position, effectDuration * 1.5f);
+    }
+
+    void SpawnEffect(GameObject prefab, Vector3 pos, float duration)
+    {
+        if (prefab == null) return;
+        var effect = Instantiate(prefab, pos, Quaternion.identity);
+        Destroy(effect, duration);
     }
 }
