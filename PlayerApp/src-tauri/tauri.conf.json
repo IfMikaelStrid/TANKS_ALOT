@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-v2-docs-json/main/tauri.schema.json",
+  "productName": "TANKS Player",
+  "version": "1.0.0",
+  "identifier": "com.tanks.player",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "title": "TANKS — Player App",
+    "windows": [
+      {
+        "title": "TANKS — Player App",
+        "width": 900,
+        "height": 700,
+        "resizable": true,
+        "minWidth": 700,
+        "minHeight": 550
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

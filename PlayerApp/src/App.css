@@ -1,0 +1,554 @@
+/* ═══════════════════════════════════════════════════════════════
+   TANKS Player App — Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg: #0e0e11;
+  --bg-panel: #16161a;
+  --bg-input: #0b0b0e;
+  --bg-header: #1a1a20;
+  --text: #d8ddd8;
+  --text-dim: #888e88;
+  --accent: #3388ff;
+  --green: #80cc80;
+  --red: #f06060;
+  --yellow: #f0cc40;
+  --border: #2a2a30;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Connection Screen ── */
+
+.connection-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #14141a 0%, #0a0a0e 100%);
+}
+
+.connection-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 36px 40px;
+  width: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 4px;
+  letter-spacing: 4px;
+  color: var(--green);
+}
+
+.title-icon {
+  font-size: 22px;
+  margin-right: 4px;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
+.form-group input, .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus, .form-group textarea:focus {
+  border-color: var(--accent);
+}
+
+.room-code-input {
+  font-size: 28px !important;
+  text-align: center;
+  letter-spacing: 12px;
+  font-weight: 700;
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  padding: 12px !important;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.flex-grow {
+  flex: 1;
+}
+
+.port-group {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.error-banner {
+  background: rgba(240, 96, 96, 0.15);
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  color: var(--red);
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.connect-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+
+.connect-btn:hover:not(:disabled) {
+  background: #4499ff;
+}
+
+.connect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Game Screen ── */
+
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 14px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.top-bar-left, .top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-bar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.player-badge {
+  font-weight: 700;
+  font-size: 14px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.mode-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.timer {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  color: var(--text);
+}
+
+.timer-low {
+  color: var(--red);
+  animation: pulse 1s infinite;
+}
+
+.timer-paused {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 3px 8px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.disconnect-btn:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+/* Banners */
+.reactive-banner {
+  background: rgba(240, 204, 64, 0.12);
+  border-bottom: 1px solid var(--yellow);
+  color: var(--yellow);
+  text-align: center;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gameover-banner {
+  background: rgba(128, 204, 128, 0.12);
+  border-bottom: 1px solid var(--green);
+  color: var(--green);
+  text-align: center;
+  padding: 10px;
+  font-size: 15px;
+}
+
+.gameover-wins {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-dim);
+}
+
+.round-result-banner {
+  background: rgba(240, 204, 64, 0.08);
+  border-bottom: 1px solid var(--border);
+  color: var(--yellow);
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+}
+
+/* Main area */
+.main-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Editor pane */
+.editor-pane {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.play-btn {
+  background: #1a6b1a;
+  border: none;
+  border-radius: 4px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.play-btn:hover {
+  background: #228b22;
+}
+
+.editor-container {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Status pane */
+.status-pane {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: 340px;
+  overflow-y: auto;
+}
+
+.status-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.status-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.status-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Health */
+.health-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.health-pip {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid var(--green);
+}
+
+.health-pip-full {
+  background: var(--green);
+}
+
+.health-pip-empty {
+  background: transparent;
+  border-color: #3a3a3a;
+}
+
+/* Player list */
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.player-dead {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.player-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.player-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dead-marker {
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* Console log */
+.console-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+
+.console-log {
+  flex: 1;
+  background: var(--bg-input);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  font-size: 12px;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.log-line {
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Settings overlay */
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.settings-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  width: 340px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.settings-panel h2 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+
+.settings-group {
+  margin-bottom: 18px;
+}
+
+.settings-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.settings-group .react-colorful {
+  width: 100% !important;
+  height: 120px !important;
+}
+
+.color-preview {
+  width: 100%;
+  height: 20px;
+  border-radius: 4px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+}
+
+.default-script-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+}
+
+.default-script-input:focus {
+  border-color: var(--accent);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.save-btn {
+  flex: 1;
+  padding: 8px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  background: #4499ff;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
