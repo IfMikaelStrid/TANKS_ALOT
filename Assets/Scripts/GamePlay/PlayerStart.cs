@@ -24,8 +24,22 @@ public class PlayerStart : MonoBehaviour
     private GameObject spawnedTank;
     private GameObject losObject;
 
+    /// <summary>Set by TankSpawnManager.Awake so the server owns spawning instead.</summary>
+    public static bool NetworkManaged;
+
+    public Vector3 SpawnPosition => transform.position + Vector3.up * spawnHeightOffset;
+    public Quaternion SpawnRotation => transform.rotation;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        NetworkManaged = false;
+    }
+
     void Start()
     {
+        if (NetworkManaged) return;
+
         Spawn();
     }
 
@@ -43,8 +57,7 @@ public class PlayerStart : MonoBehaviour
             return spawnedTank;
         }
 
-        Vector3 spawnPos = transform.position + Vector3.up * spawnHeightOffset;
-        spawnedTank = Instantiate(tankPrefab, spawnPos, transform.rotation);
+        spawnedTank = Instantiate(tankPrefab, SpawnPosition, SpawnRotation);
         spawnedTank.name = $"Tank_Player{playerNumber}";
 
         var listener = spawnedTank.GetComponent<InputListener>();
@@ -55,7 +68,7 @@ public class PlayerStart : MonoBehaviour
         listener.moveSpeed = moveSpeed;
         listener.rotateSpeed = rotateSpeed;
 
-        ApplyColors(spawnedTank);
+        ApplyTankColors(spawnedTank, tankColor);
         AttachLineOfSight(spawnedTank);
 
         Debug.Log($"[PlayerStart] Spawned {spawnedTank.name} at {transform.position}");
@@ -91,9 +104,8 @@ public class PlayerStart : MonoBehaviour
             listener.StopAllCoroutines();
 
         // Reset position and rotation
-        Vector3 spawnPos = transform.position + Vector3.up * spawnHeightOffset;
-        spawnedTank.transform.position = spawnPos;
-        spawnedTank.transform.rotation = transform.rotation;
+        spawnedTank.transform.position = SpawnPosition;
+        spawnedTank.transform.rotation = SpawnRotation;
 
         // Reset health
         var health = spawnedTank.GetComponent<TankHealth>();
@@ -106,7 +118,7 @@ public class PlayerStart : MonoBehaviour
         Debug.Log($"[PlayerStart] Reset {spawnedTank.name} to spawn position.");
     }
 
-    private void ApplyColors(GameObject tank)
+    public static void ApplyTankColors(GameObject tank, Color tankColor)
     {
         foreach (var renderer in tank.GetComponentsInChildren<Renderer>())
         {

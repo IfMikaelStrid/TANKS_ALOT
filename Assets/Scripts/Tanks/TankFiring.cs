@@ -31,6 +31,7 @@ public class TankFiring : MonoBehaviour
     {
         var listener = GetComponentInParent<InputListener>();
         if (listener == null || playerNumber != listener.playerNumber) return;
+        if (!TankNetworkContext.SimulatesTanks) return;
 
         if (Time.time - _lastFireTime < shootCooldown)
         {

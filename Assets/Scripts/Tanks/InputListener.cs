@@ -40,12 +40,14 @@ public class InputListener : MonoBehaviour
     private void HandleMoveForward(int playerNumber, float distance)
     {
         if (playerNumber != this.playerNumber) return;
+        if (!TankNetworkContext.SimulatesTanks) return;
         StartCoroutine(MoveForwardRoutine(distance));
     }
 
     private void HandleTurn(int playerNumber, float degrees, float arcRadius)
     {
         if (playerNumber != this.playerNumber) return;
+        if (!TankNetworkContext.SimulatesTanks) return;
         if (arcRadius > 0f)
             StartCoroutine(ArcTurnRoutine(degrees, arcRadius));
         else
@@ -121,6 +123,7 @@ public class InputListener : MonoBehaviour
     private void HandleBoost(int playerNumber)
     {
         if (playerNumber != this.playerNumber) return;
+        if (!TankNetworkContext.SimulatesTanks) return;
 
         if (Time.time - _lastBoostTime < boostCooldown)
         {
@@ -136,6 +139,7 @@ public class InputListener : MonoBehaviour
     private void HandleFind(int playerNumber)
     {
         if (playerNumber != this.playerNumber) return;
+        if (!TankNetworkContext.SimulatesTanks) return;
 
         if (Time.time - _lastFindTime < findCooldown)
         {
