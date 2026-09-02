@@ -501,6 +501,7 @@ GameObject:
   - component: {fileID: 9043040391743451320}
   - component: {fileID: 2618469679222142996}
   - component: {fileID: 5402262530618244529}
+  - component: {fileID: 134012516284685224}
   m_Layer: 0
   m_Name: TomThanks
   m_TagString: Untagged
@@ -771,9 +772,9 @@ MonoBehaviour:
   SyncRotAngleX: 1
   SyncRotAngleY: 1
   SyncRotAngleZ: 1
-  SyncScaleX: 1
-  SyncScaleY: 1
-  SyncScaleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
   PositionThreshold: 0.001
   RotAngleThreshold: 0.01
   ScaleThreshold: 0.01
@@ -784,6 +785,21 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &134012516284685224
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6692032196349817862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a33a68878e594714993548c1f8ab060b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankScriptRunner
+  ShowTopMostFoldoutHeaderGroup: 1
+  delayBetweenCommands: 0.1
+  submitCooldown: 0.5
 --- !u!1 &8496521893651882918
 GameObject:
   m_ObjectHideFlags: 0

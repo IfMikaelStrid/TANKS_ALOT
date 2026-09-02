@@ -16,6 +16,9 @@ public class LineOfSightCone : MonoBehaviour
     public float detectionInterval = 0.2f;
     public LayerMask obstacleMask = ~0;
 
+    [Tooltip("Disable on peers that only render the cone; the authority pushes the alert state instead.")]
+    public bool runDetection = true;
+
     [Header("Appearance")]
     public Color coneColor = new Color(1f, 1f, 0f, 0.25f);
     public Color alertColor = new Color(1f, 0f, 0f, 0.35f);
@@ -23,6 +26,9 @@ public class LineOfSightCone : MonoBehaviour
 
     public IReadOnlyList<InputListener> VisibleTanks => visibleTanks;
     private readonly List<InputListener> visibleTanks = new List<InputListener>();
+
+    public bool Alerted => alerted;
+    private bool alerted;
 
     private Mesh mesh;
     private MeshFilter meshFilter;
@@ -34,6 +40,13 @@ public class LineOfSightCone : MonoBehaviour
     private int lastSegments;
     private float detectionTimer;
     private Transform owner;
+
+    /// <summary>For peers that do not run detection themselves.</summary>
+    public void SetAlerted(bool value)
+    {
+        if (runDetection) return;
+        alerted = value;
+    }
 
     void Awake()
     {
@@ -62,14 +75,15 @@ public class LineOfSightCone : MonoBehaviour
         }
 
         detectionTimer -= Time.deltaTime;
-        if (detectionTimer <= 0f)
+        if (runDetection && detectionTimer <= 0f)
         {
             detectionTimer = detectionInterval;
             DetectTanks();
+            alerted = visibleTanks.Count > 0;
         }
 
         if (material != null)
-            material.color = visibleTanks.Count > 0 ? alertColor : coneColor;
+            material.color = alerted ? alertColor : coneColor;
     }
 
     private void DetectTanks()

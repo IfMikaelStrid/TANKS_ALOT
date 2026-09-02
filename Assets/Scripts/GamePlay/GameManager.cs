@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 public enum GameMode
@@ -10,7 +11,11 @@ public enum GameMode
     Dev
 }
 
-public class GameManager : MonoBehaviour
+/// <summary>
+/// Owns round and game flow. Offline it runs locally; in a session only the server
+/// advances state and every peer receives it through NetworkVariables and RPCs.
+/// </summary>
+public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
 
@@ -20,17 +25,42 @@ public class GameManager : MonoBehaviour
     public float intervalTime = 5f;
     public GameMode gameMode = GameMode.Dev;
 
+    [Header("Multiplayer")]
+    [Tooltip("Players required before the first round starts.")]
+    [Min(2)]
+    public int minimumPlayers = 2;
+
     [Header("Reactive Mode")]
     [Tooltip("Seconds between reactive input intervals during a round.")]
     public float reactiveInterval = 15f;
 
-    // ── Round state ──
-    public int CurrentRound { get; private set; }
-    public float RoundTimeRemaining { get; private set; }
-    public bool RoundActive { get; private set; }
-    public bool RoundTimerPaused { get; private set; }
-    public bool GameInProgress { get; private set; }
+    // ── Replicated view of the authoritative state below ──
+    readonly NetworkVariable<int> m_NetRound = new NetworkVariable<int>();
+    readonly NetworkVariable<float> m_NetTimeRemaining = new NetworkVariable<float>();
+    readonly NetworkVariable<bool> m_NetRoundActive = new NetworkVariable<bool>();
+    readonly NetworkVariable<bool> m_NetTimerPaused = new NetworkVariable<bool>();
+    readonly NetworkVariable<bool> m_NetGameInProgress = new NetworkVariable<bool>();
+    readonly NetworkVariable<GameMode> m_NetMode = new NetworkVariable<GameMode>(GameMode.Dev);
 
+    // ── Authoritative state (server, or the local machine when offline) ──
+    int round;
+    float timeRemaining;
+    bool roundActive;
+    bool timerPaused;
+    bool gameInProgress;
+
+    public int CurrentRound => IsSpawned ? m_NetRound.Value : round;
+    public float RoundTimeRemaining => IsSpawned ? m_NetTimeRemaining.Value : timeRemaining;
+    public bool RoundActive => IsSpawned ? m_NetRoundActive.Value : roundActive;
+    public bool RoundTimerPaused => IsSpawned ? m_NetTimerPaused.Value : timerPaused;
+    public bool GameInProgress => IsSpawned ? m_NetGameInProgress.Value : gameInProgress;
+    public GameMode Mode => IsSpawned ? m_NetMode.Value : gameMode;
+
+    /// <summary>True where round flow may be advanced.</summary>
+    bool IsFlowAuthority => !IsSpawned || IsServer;
+
+    // players holding a tank in the session
+    readonly HashSet<int> connectedPlayers = new HashSet<int>();
     // tracks which players are alive this round
     readonly HashSet<int> alivePlayers = new HashSet<int>();
     // tracks which players have submitted (for first-submit-starts-round)
@@ -66,6 +96,9 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        // Networked play waits for players; the server starts it from the roster instead.
+        if (PlayerStart.NetworkManaged) return;
+
         if (gameMode == GameMode.Dev)
         {
             Debug.Log("[GameManager] Dev mode — no rounds or timers.");
@@ -75,33 +108,83 @@ public class GameManager : MonoBehaviour
         StartGame();
     }
 
+    public override void OnNetworkSpawn()
+    {
+        if (!IsServer) return;
+
+        m_NetMode.Value = gameMode;
+
+        if (gameMode == GameMode.Dev)
+            Debug.Log("[GameManager] Dev mode — no rounds or timers.");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Roster
+    // ═══════════════════════════════════════════════════════════════
+
+    public void NotifyPlayerJoined(int playerNumber)
+    {
+        if (!IsFlowAuthority || playerNumber < 1) return;
+
+        connectedPlayers.Add(playerNumber);
+
+        if (gameMode == GameMode.Dev || gameInProgress) return;
+
+        if (connectedPlayers.Count >= minimumPlayers)
+        {
+            Debug.Log($"[GameManager] {connectedPlayers.Count} players connected — starting game.");
+            StartGame();
+        }
+    }
+
+    public void NotifyPlayerLeft(int playerNumber)
+    {
+        if (!IsFlowAuthority || playerNumber < 1) return;
+
+        connectedPlayers.Remove(playerNumber);
+        submittedPlayers.Remove(playerNumber);
+
+        // Otherwise the round waits forever on a player who is no longer here.
+        HandleTankDestroyed(playerNumber);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  Game Flow
     // ═══════════════════════════════════════════════════════════════
 
     public void StartGame()
     {
-        GameInProgress = true;
-        CurrentRound = 0;
+        if (!IsFlowAuthority) return;
+
+        gameInProgress = true;
+        round = 0;
         roundWins.Clear();
+        Publish();
         StartNextRound();
     }
 
     void StartNextRound()
     {
-        CurrentRound++;
+        round++;
 
-        if (CurrentRound > numberOfRounds)
+        if (round > numberOfRounds)
         {
             EndGame();
             return;
         }
 
-        // discover alive players from InputListeners in scene
         alivePlayers.Clear();
         submittedPlayers.Clear();
-        foreach (var listener in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
-            alivePlayers.Add(listener.playerNumber);
+
+        if (PlayerStart.NetworkManaged)
+        {
+            alivePlayers.UnionWith(connectedPlayers);
+        }
+        else
+        {
+            foreach (var listener in FindObjectsByType<InputListener>(FindObjectsSortMode.None))
+                alivePlayers.Add(listener.playerNumber);
+        }
 
         if (alivePlayers.Count < 2)
         {
@@ -110,30 +193,32 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        RoundTimeRemaining = roundTime;
-        RoundActive = false;
-        RoundTimerPaused = false;
+        timeRemaining = roundTime;
+        roundActive = false;
+        timerPaused = false;
+        Publish();
 
         if (gameMode == GameMode.Passive)
         {
             waitingForFirstSubmit = false;
-            Debug.Log($"[GameManager] Round {CurrentRound}/{numberOfRounds} starting (passive mode).");
+            Debug.Log($"[GameManager] Round {round}/{numberOfRounds} starting (passive mode).");
             BeginRound();
         }
         else
         {
             waitingForFirstSubmit = true;
-            Debug.Log($"[GameManager] Round {CurrentRound}/{numberOfRounds} ready. Waiting for first submit...");
+            Debug.Log($"[GameManager] Round {round}/{numberOfRounds} ready. Waiting for first submit...");
         }
     }
 
     void BeginRound()
     {
-        RoundActive = true;
+        roundActive = true;
         waitingForFirstSubmit = false;
+        Publish();
 
-        Debug.Log($"[GameManager] Round {CurrentRound} started! Mode: {gameMode}, Time: {roundTime}s");
-        TankEventBus.RoundStarted(CurrentRound);
+        Debug.Log($"[GameManager] Round {round} started! Mode: {gameMode}, Time: {roundTime}s");
+        BroadcastRoundStarted(round);
 
         if (roundCoroutine != null) StopCoroutine(roundCoroutine);
         roundCoroutine = StartCoroutine(RoundTimerRoutine());
@@ -147,15 +232,28 @@ public class GameManager : MonoBehaviour
 
     IEnumerator RoundTimerRoutine()
     {
-        while (RoundTimeRemaining > 0f && RoundActive)
+        float nextPublish = 0f;
+
+        while (timeRemaining > 0f && roundActive)
         {
-            if (!RoundTimerPaused)
-                RoundTimeRemaining -= Time.deltaTime;
+            if (!timerPaused)
+                timeRemaining -= Time.deltaTime;
+
+            // The countdown only shows whole seconds, so 5 Hz on the wire is plenty.
+            nextPublish -= Time.deltaTime;
+            if (nextPublish <= 0f)
+            {
+                nextPublish = 0.2f;
+                Publish();
+            }
 
             yield return null;
         }
 
-        if (RoundActive)
+        timeRemaining = Mathf.Max(0f, timeRemaining);
+        Publish();
+
+        if (roundActive)
         {
             Debug.Log("[GameManager] Round time expired!");
             EndRound(-1); // no winner (draw)
@@ -164,51 +262,50 @@ public class GameManager : MonoBehaviour
 
     IEnumerator ReactiveIntervalRoutine()
     {
-        while (RoundActive)
+        while (roundActive)
         {
             float elapsed = 0f;
             while (elapsed < reactiveInterval)
             {
-                if (!RoundTimerPaused && RoundActive)
+                if (!timerPaused && roundActive)
                     elapsed += Time.deltaTime;
                 yield return null;
             }
 
-            if (!RoundActive) yield break;
+            if (!roundActive) yield break;
 
-            // pause and notify all alive players
             PauseRoundTimer();
 
             foreach (int pn in alivePlayers)
-                TankEventBus.ReactiveInterval(pn);
+                BroadcastReactiveInterval(pn);
 
             Debug.Log("[GameManager] Reactive interval — players may re-input.");
-            // timer stays paused until all alive players re-submit
             submittedPlayers.Clear();
         }
     }
 
     public void PauseRoundTimer()
     {
-        if (!RoundTimerPaused)
-        {
-            RoundTimerPaused = true;
-            TankEventBus.RoundTimerPaused();
-        }
+        if (!IsFlowAuthority || timerPaused) return;
+
+        timerPaused = true;
+        Publish();
+        BroadcastTimerPaused();
     }
 
     public void ResumeRoundTimer()
     {
-        if (RoundTimerPaused)
-        {
-            RoundTimerPaused = false;
-            TankEventBus.RoundTimerResumed();
-        }
+        if (!IsFlowAuthority || !timerPaused) return;
+
+        timerPaused = false;
+        Publish();
+        BroadcastTimerResumed();
     }
 
     void EndRound(int winnerPlayerNumber)
     {
-        RoundActive = false;
+        roundActive = false;
+        Publish();
 
         if (roundCoroutine != null) { StopCoroutine(roundCoroutine); roundCoroutine = null; }
         if (reactiveCoroutine != null) { StopCoroutine(reactiveCoroutine); reactiveCoroutine = null; }
@@ -220,8 +317,8 @@ public class GameManager : MonoBehaviour
             roundWins[winnerPlayerNumber]++;
         }
 
-        Debug.Log($"[GameManager] Round {CurrentRound} ended. Winner: {(winnerPlayerNumber > 0 ? $"Player {winnerPlayerNumber}" : "Draw")}");
-        TankEventBus.RoundEnded(CurrentRound, winnerPlayerNumber);
+        Debug.Log($"[GameManager] Round {round} ended. Winner: {(winnerPlayerNumber > 0 ? $"Player {winnerPlayerNumber}" : "Draw")}");
+        BroadcastRoundEnded(round, winnerPlayerNumber);
 
         StartCoroutine(IntervalThenNextRound());
     }
@@ -240,13 +337,21 @@ public class GameManager : MonoBehaviour
 
     void ResetAllTanks()
     {
+        if (PlayerStart.NetworkManaged)
+        {
+            if (TankSpawnManager.Instance != null)
+                TankSpawnManager.Instance.ResetAllTanks();
+            return;
+        }
+
         foreach (var ps in FindObjectsByType<PlayerStart>(FindObjectsSortMode.None))
             ps.ResetTank();
     }
 
     void EndGame()
     {
-        GameInProgress = false;
+        gameInProgress = false;
+        Publish();
 
         int bestPlayer = -1;
         int bestWins = -1;
@@ -260,8 +365,77 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log($"[GameManager] Game over! Winner: {(bestPlayer > 0 ? $"Player {bestPlayer} ({bestWins} wins)" : "No winner")}");
-        TankEventBus.GameOver(bestPlayer);
+        BroadcastGameOver(bestPlayer);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Replication
+    // ═══════════════════════════════════════════════════════════════
+
+    void Publish()
+    {
+        if (!IsSpawned || !IsServer) return;
+
+        m_NetRound.Value = round;
+        m_NetTimeRemaining.Value = timeRemaining;
+        m_NetRoundActive.Value = roundActive;
+        m_NetTimerPaused.Value = timerPaused;
+        m_NetGameInProgress.Value = gameInProgress;
+    }
+
+    void BroadcastRoundStarted(int roundNumber)
+    {
+        if (IsSpawned) RoundStartedRpc(roundNumber);
+        else TankEventBus.RoundStarted(roundNumber);
+    }
+
+    void BroadcastRoundEnded(int roundNumber, int winner)
+    {
+        if (IsSpawned) RoundEndedRpc(roundNumber, winner);
+        else TankEventBus.RoundEnded(roundNumber, winner);
+    }
+
+    void BroadcastGameOver(int winner)
+    {
+        if (IsSpawned) GameOverRpc(winner);
+        else TankEventBus.GameOver(winner);
+    }
+
+    void BroadcastTimerPaused()
+    {
+        if (IsSpawned) TimerPausedRpc();
+        else TankEventBus.RoundTimerPaused();
+    }
+
+    void BroadcastTimerResumed()
+    {
+        if (IsSpawned) TimerResumedRpc();
+        else TankEventBus.RoundTimerResumed();
+    }
+
+    void BroadcastReactiveInterval(int playerNumber)
+    {
+        if (IsSpawned) ReactiveIntervalRpc(playerNumber);
+        else TankEventBus.ReactiveInterval(playerNumber);
+    }
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void RoundStartedRpc(int roundNumber) => TankEventBus.RoundStarted(roundNumber);
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void RoundEndedRpc(int roundNumber, int winner) => TankEventBus.RoundEnded(roundNumber, winner);
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void GameOverRpc(int winner) => TankEventBus.GameOver(winner);
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void TimerPausedRpc() => TankEventBus.RoundTimerPaused();
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void TimerResumedRpc() => TankEventBus.RoundTimerResumed();
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    void ReactiveIntervalRpc(int playerNumber) => TankEventBus.ReactiveInterval(playerNumber);
 
     // ═══════════════════════════════════════════════════════════════
     //  Event Handlers
@@ -269,10 +443,12 @@ public class GameManager : MonoBehaviour
 
     void HandleTankDestroyed(int playerNumber)
     {
-        alivePlayers.Remove(playerNumber);
+        if (!IsFlowAuthority) return;
+        if (!alivePlayers.Remove(playerNumber)) return;
+
         Debug.Log($"[GameManager] Player {playerNumber} eliminated. {alivePlayers.Count} remaining.");
 
-        if (!RoundActive) return;
+        if (!roundActive) return;
 
         if (alivePlayers.Count <= 1)
         {
@@ -286,6 +462,8 @@ public class GameManager : MonoBehaviour
 
     void HandlePlayerSubmitted(int playerNumber)
     {
+        if (!IsFlowAuthority) return;
+
         submittedPlayers.Add(playerNumber);
 
         // first submit of any player starts the round
@@ -296,7 +474,7 @@ public class GameManager : MonoBehaviour
         }
 
         // reactive mode: resume timer once all alive players have re-submitted
-        if (gameMode == GameMode.Reactive && RoundTimerPaused && RoundActive)
+        if (gameMode == GameMode.Reactive && timerPaused && roundActive)
         {
             if (submittedPlayers.IsSupersetOf(alivePlayers))
             {

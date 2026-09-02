@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 /// <summary>
@@ -18,6 +19,8 @@ public class TankSpawnManager : MonoBehaviour
     [Min(1)]
     public int maxPlayers = 4;
 
+    public static TankSpawnManager Instance { get; private set; }
+
     NetworkManager m_NetworkManager;
 
     readonly Dictionary<ulong, int> m_SlotByClient = new Dictionary<ulong, int>();
@@ -25,12 +28,19 @@ public class TankSpawnManager : MonoBehaviour
 
     void Awake()
     {
+        Instance = this;
         m_NetworkManager = GetComponent<NetworkManager>();
 
         // Runs before any PlayerStart.Start(), which suppresses the offline auto-spawn.
         PlayerStart.NetworkManaged = true;
 
         m_NetworkManager.NetworkConfig.ConnectionApproval = true;
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     void OnEnable()
@@ -84,6 +94,9 @@ public class TankSpawnManager : MonoBehaviour
     void HandleClientDisconnected(ulong clientId)
     {
         if (!m_NetworkManager.IsServer) return;
+
+        if (m_SlotByClient.TryGetValue(clientId, out int slot) && GameManager.Instance != null)
+            GameManager.Instance.NotifyPlayerLeft(slot);
 
         if (m_TankByClient.TryGetValue(clientId, out var tank))
         {
@@ -146,6 +159,9 @@ public class TankSpawnManager : MonoBehaviour
 
         m_TankByClient[clientId] = netObject;
 
+        if (GameManager.Instance != null)
+            GameManager.Instance.NotifyPlayerJoined(slot);
+
         Debug.Log($"[TankSpawnManager] Spawned tank for client {clientId} as player {slot}.");
     }
 
@@ -153,7 +169,6 @@ public class TankSpawnManager : MonoBehaviour
     {
         if (m_SlotByClient.TryGetValue(clientId, out int existing))
             return existing;
-
         for (int slot = 1; slot <= maxPlayers; slot++)
         {
             if (m_SlotByClient.ContainsValue(slot)) continue;
@@ -179,5 +194,45 @@ public class TankSpawnManager : MonoBehaviour
         // Fall back to a stable ordering so every slot still gets a distinct point.
         System.Array.Sort(points, (a, b) => string.CompareOrdinal(a.name, b.name));
         return points[(slot - 1) % points.Length];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Round reset
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>Server only. Returns every spawned tank to its spawn point and revives it.</summary>
+    public void ResetAllTanks()
+    {
+        if (m_NetworkManager == null || !m_NetworkManager.IsServer) return;
+
+        foreach (var pair in m_TankByClient)
+        {
+            NetworkObject tank = pair.Value;
+            if (tank == null || !tank.IsSpawned) continue;
+            if (!m_SlotByClient.TryGetValue(pair.Key, out int slot)) continue;
+
+            var listener = tank.GetComponent<InputListener>();
+            if (listener != null)
+                listener.StopAllCoroutines();
+
+            PlayerStart point = ResolveSpawnPoint(slot);
+            Vector3 position = point != null ? point.SpawnPosition : tank.transform.position;
+            Quaternion rotation = point != null ? point.SpawnRotation : tank.transform.rotation;
+
+            var netTransform = tank.GetComponent<NetworkTransform>();
+            if (netTransform != null)
+            {
+                // Teleport, otherwise clients interpolate the whole way across the map.
+                netTransform.Teleport(position, rotation, tank.transform.localScale);
+            }
+            else
+            {
+                tank.transform.SetPositionAndRotation(position, rotation);
+            }
+
+            var health = tank.GetComponent<TankHealth>();
+            if (health != null)
+                health.ResetHealth();
+        }
     }
 }

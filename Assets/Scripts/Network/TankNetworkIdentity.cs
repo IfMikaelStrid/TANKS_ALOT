@@ -22,8 +22,14 @@ public class TankNetworkIdentity : NetworkBehaviour
     };
 
     readonly NetworkVariable<int> m_PlayerNumber = new NetworkVariable<int>(0);
+    readonly NetworkVariable<bool> m_Spotting = new NetworkVariable<bool>(false);
+    readonly NetworkVariable<bool> m_Alive = new NetworkVariable<bool>(true);
+
+    LineOfSightCone m_Cone;
 
     public int PlayerNumber => m_PlayerNumber.Value;
+
+    public bool IsAlive => m_Alive.Value;
 
     /// <summary>True when this tank belongs to the local player.</summary>
     public bool IsLocalPlayerTank => IsSpawned && IsOwner;
@@ -46,20 +52,56 @@ public class TankNetworkIdentity : NetworkBehaviour
         m_PlayerNumber.Value = playerNumber;
     }
 
+    /// <summary>
+    /// Server only. Deactivating a spawned NetworkObject breaks replication, so a "dead"
+    /// tank is hidden and disabled instead of being turned off.
+    /// </summary>
+    public void SetAlive(bool value)
+    {
+        if (!IsServer) return;
+
+        m_Alive.Value = value;
+    }
+
     public override void OnNetworkSpawn()
     {
         m_PlayerNumber.OnValueChanged += HandlePlayerNumberChanged;
+        m_Spotting.OnValueChanged += HandleSpottingChanged;
+        m_Alive.OnValueChanged += HandleAliveChanged;
+
         Apply(m_PlayerNumber.Value);
+        ApplyAlive(m_Alive.Value);
     }
 
     public override void OnNetworkDespawn()
     {
         m_PlayerNumber.OnValueChanged -= HandlePlayerNumberChanged;
+        m_Spotting.OnValueChanged -= HandleSpottingChanged;
+        m_Alive.OnValueChanged -= HandleAliveChanged;
+    }
+
+    void Update()
+    {
+        if (!IsSpawned || !IsServer || m_Cone == null) return;
+
+        if (m_Spotting.Value != m_Cone.Alerted)
+            m_Spotting.Value = m_Cone.Alerted;
     }
 
     void HandlePlayerNumberChanged(int previous, int current)
     {
         Apply(current);
+    }
+
+    void HandleSpottingChanged(bool previous, bool current)
+    {
+        if (m_Cone != null)
+            m_Cone.SetAlerted(current);
+    }
+
+    void HandleAliveChanged(bool previous, bool current)
+    {
+        ApplyAlive(current);
     }
 
     void Apply(int playerNumber)
@@ -90,6 +132,30 @@ public class TankNetworkIdentity : NetworkBehaviour
         cone.angle = losAngle;
         cone.range = losRange;
         cone.coneColor = new Color(1f, 1f, 0f, 0.25f);
-        cone.gameObject.SetActive(showLineOfSight);
+
+        // Only the server raycasts; other peers just render what it reports.
+        cone.runDetection = IsServer;
+        if (!IsServer)
+            cone.SetAlerted(m_Spotting.Value);
+
+        cone.gameObject.SetActive(showLineOfSight && m_Alive.Value);
+        m_Cone = cone;
+    }
+
+    void ApplyAlive(bool alive)
+    {
+        Transform coneRoot = m_Cone != null ? m_Cone.transform : null;
+
+        foreach (var renderer in GetComponentsInChildren<Renderer>(true))
+        {
+            if (coneRoot != null && renderer.transform.IsChildOf(coneRoot)) continue;
+            renderer.enabled = alive;
+        }
+
+        foreach (var collider in GetComponentsInChildren<Collider>(true))
+            collider.enabled = alive;
+
+        if (m_Cone != null)
+            m_Cone.gameObject.SetActive(showLineOfSight && alive);
     }
 }

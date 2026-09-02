@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 public class TankFiring : MonoBehaviour
@@ -53,6 +54,15 @@ public class TankFiring : MonoBehaviour
         if (rb != null)
         {
             rb.linearVelocity = fireTransform.forward * launchForce;
+        }
+
+        if (TankNetworkContext.SessionActive)
+        {
+            var netObject = bullet.GetComponent<NetworkObject>();
+            if (netObject != null)
+                netObject.Spawn();
+            else
+                Debug.LogWarning("[TankFiring] Shell prefab has no NetworkObject — run Tools/TANKS/Setup Networking.");
         }
 
         _lastFireTime = Time.time;

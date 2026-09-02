@@ -68,6 +68,9 @@ public class PlayerStart : MonoBehaviour
         listener.moveSpeed = moveSpeed;
         listener.rotateSpeed = rotateSpeed;
 
+        if (spawnedTank.GetComponent<TankScriptRunner>() == null)
+            spawnedTank.AddComponent<TankScriptRunner>();
+
         ApplyTankColors(spawnedTank, tankColor);
         AttachLineOfSight(spawnedTank);
 
@@ -96,6 +99,7 @@ public class PlayerStart : MonoBehaviour
 
     public void ResetTank()
     {
+        if (NetworkManaged) return;
         if (spawnedTank == null) return;
 
         // Stop all running coroutines on the tank (movement, etc.)
