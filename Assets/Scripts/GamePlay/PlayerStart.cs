@@ -97,6 +97,27 @@ public class PlayerStart : MonoBehaviour
             losObject.SetActive(showLineOfSight);
     }
 
+#if UNITY_EDITOR
+    void OnDrawGizmos()
+    {
+        Vector3 spawn = SpawnPosition;
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        Gizmos.color = TankNetworkIdentity.ColorForSlot(playerNumber);
+        Gizmos.DrawWireSphere(spawn, 0.6f);
+        Gizmos.DrawLine(transform.position, spawn);
+
+        Vector3 tip = spawn + forward * 2.5f;
+        Gizmos.DrawLine(spawn, tip);
+        Gizmos.DrawLine(tip, tip - forward * 0.6f + right * 0.35f);
+        Gizmos.DrawLine(tip, tip - forward * 0.6f - right * 0.35f);
+
+        UnityEditor.Handles.color = Gizmos.color;
+        UnityEditor.Handles.Label(spawn + Vector3.up * 1.2f, $"P{playerNumber}");
+    }
+#endif
+
     public void ResetTank()
     {
         if (NetworkManaged) return;
