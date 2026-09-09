@@ -1,75 +1,118 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
+/// <summary>
+/// Top-down pan/zoom camera. Left-drag pans across the ground plane, WASD pans
+/// independently of the mouse, scroll zooms along the camera's own forward axis,
+/// Space snaps back to the local player's tank. Orientation never changes.
+/// Keyboard controls are suppressed while a UI text field (e.g. the console
+/// script editor) has focus, so typing doesn't drive the camera.
+/// </summary>
 public class FreeCamera : MonoBehaviour
 {
-    public float moveSpeed = 10f;
-    public float fastSpeed = 25f;
-    public float mouseSensitivity = 0.1f;
+    [Header("Pan")]
+    [Tooltip("World units moved per pixel of mouse drag.")]
+    public float dragPanSpeed = 0.05f;
+    [Tooltip("World units per second when panning with WASD.")]
+    public float keyPanSpeed = 20f;
 
-    private float rotationX = 0f;
-    private float rotationY = 0f;
+    [Header("Zoom")]
+    [Tooltip("World units moved per scroll unit.")]
+    public float zoomSpeed = 0.02f;
+    public float minHeight = 5f;
+    public float maxHeight = 80f;
+
+    [Header("Reset")]
+    [Tooltip("Distance from the tank along the camera's current view direction when Space is pressed.")]
+    public float resetDistance = 40f;
 
     void Update()
     {
-        // Only control camera while RMB is held
-        if (Mouse.current.rightButton.isPressed)
-        {
-            LockCursor(true);
-            Look();
-            Move();
-        }
-        else
-        {
-            LockCursor(false);
-        }
+        bool typing = IsTypingInUI();
+
+        HandlePan(typing);
+        HandleZoom();
+        HandleReset(typing);
     }
 
-    void Look()
+    void HandlePan(bool typing)
     {
-        Vector2 mouseDelta = Mouse.current.delta.ReadValue();
+        Vector3 forward = GroundForward();
 
-        rotationX -= mouseDelta.y * mouseSensitivity;
-        rotationY += mouseDelta.x * mouseSensitivity;
+        if (Mouse.current.leftButton.isPressed)
+        {
+            Vector2 delta = Mouse.current.delta.ReadValue();
 
-        rotationX = Mathf.Clamp(rotationX, -90f, 90f);
+            // Dragging the mouse moves the world under the cursor, so pan is inverted.
+            transform.position += -transform.right * delta.x * dragPanSpeed - forward * delta.y * dragPanSpeed;
+        }
 
-        transform.rotation = Quaternion.Euler(rotationX, rotationY, 0f);
+        if (typing) return;
+
+        if (Keyboard.current.wKey.isPressed) transform.position += forward * keyPanSpeed * Time.deltaTime;
+        if (Keyboard.current.sKey.isPressed) transform.position -= forward * keyPanSpeed * Time.deltaTime;
+        if (Keyboard.current.aKey.isPressed) transform.position -= transform.right * keyPanSpeed * Time.deltaTime;
+        if (Keyboard.current.dKey.isPressed) transform.position += transform.right * keyPanSpeed * Time.deltaTime;
     }
 
-    void Move()
+    void HandleZoom()
     {
-        float speed = Keyboard.current.leftShiftKey.isPressed ? fastSpeed : moveSpeed;
+        float scroll = Mouse.current.scroll.ReadValue().y;
+        if (Mathf.Approximately(scroll, 0f)) return;
 
-        float x = 0f;
-        float y = 0f;
-        float z = 0f;
-
-        if (Keyboard.current.aKey.isPressed) x -= 1f;
-        if (Keyboard.current.dKey.isPressed) x += 1f;
-
-        if (Keyboard.current.wKey.isPressed) z += 1f;
-        if (Keyboard.current.sKey.isPressed) z -= 1f;
-
-        if (Keyboard.current.eKey.isPressed) y += 1f;
-        if (Keyboard.current.qKey.isPressed) y -= 1f;
-
-        Vector3 move = transform.right * x + transform.forward * z + transform.up * y;
-
-        transform.position += move * speed * Time.deltaTime;
+        Vector3 next = transform.position + transform.forward * scroll * zoomSpeed;
+        next.y = Mathf.Clamp(next.y, minHeight, maxHeight);
+        transform.position = next;
     }
 
-    void LockCursor(bool locked)
+    void HandleReset(bool typing)
     {
-        if (locked)
+        if (typing) return;
+        if (!Keyboard.current.spaceKey.wasPressedThisFrame) return;
+
+        Transform tank = FindLocalTank();
+        if (tank == null) return;
+
+        // Placing the camera along its own forward axis keeps the tank centered
+        // regardless of tilt, unlike a fixed world-space offset.
+        transform.position = tank.position - transform.forward * resetDistance;
+    }
+
+    /// <summary>True while a uGUI InputField (the console script editor) has keyboard focus.</summary>
+    static bool IsTypingInUI()
+    {
+        var eventSystem = EventSystem.current;
+        if (eventSystem == null) return false;
+
+        var selected = eventSystem.currentSelectedGameObject;
+        if (selected == null) return false;
+
+        var inputField = selected.GetComponent<InputField>();
+        return inputField != null && inputField.isFocused;
+    }
+
+    Vector3 GroundForward()
+    {
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        return forward.sqrMagnitude > 0.0001f ? forward.normalized : transform.up;
+    }
+
+    static Transform FindLocalTank()
+    {
+        if (TankNetworkContext.SessionActive)
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            foreach (var identity in FindObjectsByType<TankNetworkIdentity>(FindObjectsSortMode.None))
+            {
+                if (identity.IsLocalPlayerTank)
+                    return identity.transform;
+            }
+            return null;
         }
-        else
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+
+        var listener = FindFirstObjectByType<InputListener>();
+        return listener != null ? listener.transform : null;
     }
 }
