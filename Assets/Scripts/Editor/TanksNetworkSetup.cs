@@ -15,6 +15,7 @@ public static class TanksNetworkSetup
     const string TankPrefabPath = "Assets/Mesh/tank/Prefab/TomThanks.prefab";
     const string ShellPrefabPath = "Assets/Mesh/Weapons/Prefab/shell.prefab";
     const string PrefabsListPath = "Assets/DefaultNetworkPrefabs.asset";
+    const string HealthIconPath = "Assets/Icons/tank_health.png";
 
     [MenuItem("Tools/TANKS/Setup Networking")]
     public static void Run()
@@ -26,7 +27,9 @@ public static class TanksNetworkSetup
             return;
         }
 
-        PrepareTankPrefab(TankPrefabPath);
+        var healthIcon = PrepareHealthIcon(HealthIconPath);
+
+        PrepareTankPrefab(TankPrefabPath, healthIcon);
         PrepareShellPrefab(ShellPrefabPath);
         var prefabsList = RegisterNetworkPrefabs(TankPrefabPath, ShellPrefabPath);
         ConfigureScene(tankPrefab, prefabsList);
@@ -39,7 +42,7 @@ public static class TanksNetworkSetup
     //  Prefab
     // ═══════════════════════════════════════════════════════════════
 
-    static void PrepareTankPrefab(string path)
+    static void PrepareTankPrefab(string path, Sprite healthIcon)
     {
         GameObject root = PrefabUtility.LoadPrefabContents(path);
 
@@ -49,6 +52,14 @@ public static class TanksNetworkSetup
             EnsureComponent<InputListener>(root);
             EnsureComponent<TankNetworkIdentity>(root);
             EnsureComponent<TankScriptRunner>(root);
+
+            var healthBar = EnsureComponent<TankHealthBarUI>(root);
+            if (healthIcon != null)
+                healthBar.healthIconSprite = healthIcon;
+
+            // Already-serialized fields on the prefab don't pick up new C# defaults, so force them.
+            healthBar.iconSizePixels = 64f;
+            healthBar.iconSpacingPixels = 76f;
 
             var transform = EnsureComponent<NetworkTransform>(root);
             transform.AuthorityMode = NetworkTransform.AuthorityModes.Server;
@@ -71,6 +82,29 @@ public static class TanksNetworkSetup
     {
         var component = target.GetComponent<T>();
         return component != null ? component : target.AddComponent<T>();
+    }
+
+    /// <summary>Forces the icon to import as a UI sprite, since it may not have a .meta yet.</summary>
+    static Sprite PrepareHealthIcon(string path)
+    {
+        if (AssetDatabase.LoadAssetAtPath<Texture2D>(path) == null)
+        {
+            Debug.LogWarning($"[TanksNetworkSetup] Health icon not found at {path} — health display will have no icon.");
+            return null;
+        }
+
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null &&
+            (importer.textureType != TextureImporterType.Sprite || importer.spriteImportMode != SpriteImportMode.Single))
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+        }
+
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
     }
 
     static void PrepareShellPrefab(string path)

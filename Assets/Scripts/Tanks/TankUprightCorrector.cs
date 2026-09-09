@@ -15,6 +15,9 @@ public class TankUprightCorrector : MonoBehaviour
 
     void Update()
     {
+        // Clients must not touch the transform or they fight the replicated rotation.
+        if (!TankNetworkContext.SimulatesTanks) return;
+
         float upDot = Vector3.Dot(transform.up, Vector3.up);
 
         if (upDot >= tiltThreshold)

@@ -502,6 +502,7 @@ GameObject:
   - component: {fileID: 2618469679222142996}
   - component: {fileID: 5402262530618244529}
   - component: {fileID: 134012516284685224}
+  - component: {fileID: 3676870495897029341}
   m_Layer: 0
   m_Name: TomThanks
   m_TagString: Untagged
@@ -663,6 +664,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e377e0453af3a7f44ae0e587be21b97d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankHealth
+  ShowTopMostFoldoutHeaderGroup: 1
   maxHealth: 2
 --- !u!114 &-1550608838824158539
 MonoBehaviour:
@@ -800,6 +802,24 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   delayBetweenCommands: 0.1
   submitCooldown: 0.5
+--- !u!114 &3676870495897029341
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6692032196349817862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1febfb637303904aa8b220ffb852117, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankHealthBarUI
+  healthIconSprite: {fileID: 21300000, guid: 478e1275fe30e3f43b36b5e900a6b866, type: 3}
+  heightOffset: 2.2
+  forwardOffset: 2.5
+  iconSizePixels: 64
+  iconSpacingPixels: 76
+  canvasScale: 0.01
 --- !u!1 &8496521893651882918
 GameObject:
   m_ObjectHideFlags: 0
