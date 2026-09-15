@@ -679,8 +679,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TankUprightCorrector
   tiltThreshold: 0.5
-  correctionSpeed: 180
-  correctionDelay: 0.5
+  hardResetTimeout: 5
 --- !u!114 &655941106667568471
 MonoBehaviour:
   m_ObjectHideFlags: 0

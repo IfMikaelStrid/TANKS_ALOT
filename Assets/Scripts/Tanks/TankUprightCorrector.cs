@@ -1,3 +1,5 @@
+using System.Collections;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 public class TankUprightCorrector : MonoBehaviour
@@ -5,15 +7,22 @@ public class TankUprightCorrector : MonoBehaviour
     [Tooltip("Dot product threshold below which the tank is considered tipped (0.5 ≈ 60°).")]
     public float tiltThreshold = 0.5f;
 
-    [Tooltip("How fast the tank rotates back upright (degrees per second).")]
-    public float correctionSpeed = 180f;
+    [Tooltip("If still tipped after this many seconds, reset upright at the tank's current position.")]
+    public float hardResetTimeout = 5f;
 
-    [Tooltip("Seconds to wait before starting correction (lets physics settle).")]
-    public float correctionDelay = 0.5f;
+    Quaternion originalRotation;
+    Rigidbody body;
+    float tiltTimer;
+    bool movementPaused;
+    bool resetting;
 
-    private float _tiltTimer;
+    void Awake()
+    {
+        originalRotation = transform.rotation;
+        body = GetComponent<Rigidbody>();
+    }
 
-    void Update()
+    void FixedUpdate()
     {
         // Clients must not touch the transform or they fight the replicated rotation.
         if (!TankNetworkContext.SimulatesTanks) return;
@@ -22,15 +31,76 @@ public class TankUprightCorrector : MonoBehaviour
 
         if (upDot >= tiltThreshold)
         {
-            _tiltTimer = 0f;
+            tiltTimer = 0f;
+            if (movementPaused)
+                FinishPausedCommand();
             return;
         }
 
-        _tiltTimer += Time.deltaTime;
-        if (_tiltTimer < correctionDelay)
-            return;
+        if (!movementPaused)
+            PauseMovement();
 
-        Quaternion target = Quaternion.FromToRotation(transform.up, Vector3.up) * transform.rotation;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, correctionSpeed * Time.deltaTime);
+        tiltTimer += Time.fixedDeltaTime;
+
+        if (tiltTimer >= hardResetTimeout && !resetting)
+            StartCoroutine(ResetToSpawnRoutine());
+    }
+
+    IEnumerator ResetToSpawnRoutine()
+    {
+        resetting = true;
+        tiltTimer = 0f;
+        Vector3 resetPosition = transform.position;
+
+        bool wasKinematic = false;
+
+        if (body != null)
+        {
+            wasKinematic = body.isKinematic;
+            body.isKinematic = true;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
+        var netTransform = GetComponent<NetworkTransform>();
+        if (netTransform != null && netTransform.IsSpawned)
+        {
+            netTransform.Teleport(resetPosition, originalRotation, transform.localScale);
+        }
+        else
+        {
+            transform.SetPositionAndRotation(resetPosition, originalRotation);
+        }
+
+        if (body != null)
+        {
+            yield return new WaitForFixedUpdate();
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.isKinematic = wasKinematic;
+        }
+
+        FinishPausedCommand();
+        resetting = false;
+    }
+
+    void PauseMovement()
+    {
+        var listener = GetComponent<InputListener>();
+        if (listener == null) return;
+
+        listener.StopAllCoroutines();
+        movementPaused = true;
+    }
+
+    void FinishPausedCommand()
+    {
+        if (!movementPaused) return;
+
+        var listener = GetComponent<InputListener>();
+        if (listener == null) return;
+
+        movementPaused = false;
+        TankEventBus.CommandDone(listener.playerNumber);
     }
 }

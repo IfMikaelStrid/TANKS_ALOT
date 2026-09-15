@@ -1012,7 +1012,7 @@ MonoBehaviour:
   zoomSpeed: 0.02
   minHeight: 5
   maxHeight: 80
-  resetOffset: {x: 0, y: 35, z: -20}
+  resetDistance: 40
 --- !u!1001 &1958860927
 PrefabInstance:
   m_ObjectHideFlags: 0
